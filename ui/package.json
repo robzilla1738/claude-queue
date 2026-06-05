@@ -1,0 +1,12 @@
+{
+  "name": "claude-queue-ui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Terminal UI for the claude-queue plugin",
+  "bin": {
+    "claude-queue-ui": "queue-ui.js"
+  },
+  "dependencies": {
+    "blessed": "^0.1.81"
+  }
+}

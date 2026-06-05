@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "claude-queue",
+  "version": "1.0.0",
+  "description": "Queue follow-up tasks in a clickable terminal UI; the running Claude session finishes its current task, then automatically picks up the next queued task, draining the queue one item at a time.",
+  "author": {
+    "name": "Robert Courson"
+  },
+  "homepage": "https://github.com/robzilla1738/claude-queue",
+  "license": "MIT",
+  "keywords": ["queue", "tasks", "stop-hook", "tui", "workflow"],
+  "commands": "./commands",
+  "hooks": "./hooks/hooks.json"
+}

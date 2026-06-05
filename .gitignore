@@ -1,0 +1,7 @@
+# UI dependency is installed on first launch by scripts/launch-queue.sh
+ui/node_modules/
+npm-debug.log*
+
+# Local queue state (lives in ~/.claude-queue, but ignore any stray copies)
+.claude-queue/
+*.tmp

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "claude-queue",
+  "owner": {
+    "name": "Robert Courson"
+  },
+  "plugins": [
+    {
+      "name": "claude-queue",
+      "source": "./",
+      "description": "Queue follow-up tasks in a clickable terminal UI; Claude finishes its current task, then auto-picks up the next queued task until the queue is empty."
+    }
+  ]
+}

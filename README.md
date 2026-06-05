@@ -1,1 +1,107 @@
 # claude-queue
+
+Queue follow-up tasks for a running Claude Code session — in a clickable terminal task list.
+
+Fire off your first task, then pop open a small second-terminal UI and start adding more.
+Claude finishes what it's working on, then **automatically picks up the next queued task**,
+draining the list one item at a time until it's empty. Nothing interrupts the task in
+progress — items are only pulled once the current one is done.
+
+```
+  ┌──────────────────────────┐         writes / edits        ┌──────────────────────┐
+  │  Main Claude Code session │                               │  Second terminal     │
+  │                           │     ┌───────────────────┐     │  window (the UI)     │
+  │  /claude-queue ───────────┼────▶│ queue-<sid>.json  │◀────┤  clickable task list │
+  │  (opens the UI)           │     │  { queue, done }  │     │  add / remove / move │
+  │                           │     └───────────────────┘     └──────────────────────┘
+  │  Stop hook ◀──── reads ───┼──── pops head → "do this next"
+  └──────────────────────────┘
+```
+
+## How it works
+
+Claude Code fires a **`Stop` hook** every time Claude finishes a turn. claude-queue's
+hook reads your session's queue file and, if there's a pending task, returns
+`{"decision": "block", "reason": "Next queued task: …"}`. That tells Claude not to go idle
+and to work on that task next. When the queue is empty, the hook does nothing and the
+session idles as usual. The queue strictly shrinks (one item per finished turn), so it
+always terminates — no runaway loops.
+
+The terminal UI and the hook share one file per session
+(`~/.claude-queue/queue-<session_id>.json`), written atomically so they never collide.
+
+## Install
+
+claude-queue is distributed as a Claude Code plugin from this repo (which doubles as a
+marketplace):
+
+```
+/plugin marketplace add robzilla1738/claude-queue
+/plugin install claude-queue@claude-queue
+```
+
+Then restart Claude Code so the `Stop` hook loads.
+
+**Requirements:** Node.js (already required by Claude Code) and macOS or Linux. The UI's
+one dependency (`blessed`) is installed automatically the first time you open the queue.
+
+## Usage
+
+1. Give Claude a task as normal.
+2. Run **`/claude-queue`** — a new terminal window opens with the task list.
+3. Type tasks into the input box (Enter to add). Add as many as you like, whenever you like.
+4. When Claude finishes its current task, it pulls the top item off your queue and starts
+   on it — then the next, and the next, until the queue is empty.
+
+If you're in a remote/SSH/web session where a window can't be opened, `/claude-queue`
+prints the exact `node …/ui/queue-ui.js <session>` command to run in any terminal instead.
+
+### UI controls
+
+| Action | Keys / mouse |
+| --- | --- |
+| Add a task | type in the box, **Enter** |
+| Select a task | click it, or **↑/↓**, **j/k** |
+| Remove selected | **d** / **Delete**, or click **[ Remove ]** |
+| Move up / down | **K** / **J** (shift) |
+| Jump to input | **i** or **a** |
+| Refresh | **r** |
+| Quit (queue keeps running) | **q** / **Esc** / **Ctrl-C** |
+
+Consumed tasks drop into a dimmed **done** section so you can see what Claude has picked up.
+
+## Layout
+
+```
+.claude-plugin/plugin.json        # plugin manifest
+.claude-plugin/marketplace.json   # makes this repo installable as a marketplace
+commands/claude-queue.md          # the /claude-queue command (opens the UI)
+hooks/hooks.json                  # registers the Stop hook
+scripts/stop-hook.js              # Stop hook: pop next task, tell Claude to continue
+scripts/launch-queue.sh           # opens the default terminal + starts the UI
+scripts/lib/queue-store.js        # shared, atomic per-session queue file logic
+ui/queue-ui.js                    # the blessed terminal task list
+test/                             # node:test unit + hook integration tests
+```
+
+## Development
+
+```
+node --test test/*.test.js     # run the test suite
+(cd ui && npm install)         # install the UI dependency for local runs
+node ui/queue-ui.js my-session # run the UI standalone against a session id
+```
+
+Queues live in `~/.claude-queue/`. Delete that folder any time to clear all queues, or set
+`CLAUDE_QUEUE_DIR` to store them elsewhere.
+
+## Notes & limitations
+
+- macOS (Terminal.app / iTerm) and Linux (`$TERMINAL`, `x-terminal-emulator`,
+  `gnome-terminal`, `konsole`, `kitty`, `alacritty`, `xterm`, …) are supported. Windows
+  Terminal is not yet handled — contributions welcome.
+- Queues are scoped per session id, so multiple concurrent sessions stay independent.
+
+## License
+
+MIT — see [LICENSE](./LICENSE).
