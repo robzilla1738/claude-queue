@@ -56,19 +56,23 @@ one dependency (`blessed`) is installed automatically the first time you open th
 If you're in a remote/SSH/web session where a window can't be opened, `/claude-queue`
 prints the exact `node …/ui/queue-ui.js <session>` command to run in any terminal instead.
 
-### UI controls
+### The UI
 
-| Action | Keys / mouse |
-| --- | --- |
-| Add a task | type in the box, **Enter** |
-| Select a task | click it, or **↑/↓**, **j/k** |
-| Remove selected | **d** / **Delete**, or click **[ Remove ]** |
-| Move up / down | **K** / **J** (shift) |
-| Jump to input | **i** or **a** |
-| Refresh | **r** |
-| Quit (queue keeps running) | **q** / **Esc** / **Ctrl-C** |
+A minimal, black-and-white list. Each queued task is its own box; the selected
+box is inverted (black on white). The current task in progress is item 1 — Claude
+takes from the top.
 
-Consumed tasks drop into a dimmed **done** section so you can see what Claude has picked up.
+| Action | Mouse | Keys |
+| --- | --- | --- |
+| Add a task | type in the **new task** box, click away | type + **Enter** |
+| Select a task | click its box | **↑/↓** or **j/k** |
+| Move up / down | click the **▲ / ▼** handle on the box | **Shift+↑/↓** |
+| Remove a task | click the **✕** handle on the box | **d** / **⌫** |
+| Jump to the input | click the **new task** box | **a** / **i** |
+| Quit (queue keeps running) | — | **q** / **Esc** / **Ctrl-C** |
+
+Consumed tasks drop into a dim **done** strip at the bottom so you can see what
+Claude has already picked up.
 
 ## Layout
 

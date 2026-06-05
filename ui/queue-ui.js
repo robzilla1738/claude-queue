@@ -2,22 +2,19 @@
 'use strict';
 
 /**
- * queue-ui.js — the clickable terminal task list that runs in the second window.
+ * queue-ui.js — a minimal, black-and-white terminal task list for claude-queue.
  *
  * Usage:  node queue-ui.js <session_id>
  *
- * It reads and writes the same per-session queue file as the Stop hook (via
- * scripts/lib/queue-store.js), so anything you add here is what the running
- * Claude session picks up when it finishes its current task. The list refreshes
- * live (fs.watch) whenever the hook consumes an item, moving it into "Done".
+ * Each queued task is its own box. Click a box to select it; click the ▲ / ▼
+ * handles (or use Shift+↑/↓) to reorder; remove with ⌫ / d / the ✕ handle. New
+ * tasks are typed into the box at the top. The list reads and writes the same
+ * per-session queue file as the Stop hook, so whatever is here is what the
+ * running Claude session works through, one item at a time, and it refreshes
+ * live (fs.watch) as items are consumed.
  *
- * Controls:
- *   - Type in the input box + Enter ........ add a task to the queue
- *   - Click a task (or j/k, ↑/↓) .......... select it
- *   - d / Delete / click [Remove] ......... remove the selected task
- *   - J / K (shift) ....................... move the selected task down / up
- *   - r ................................... force refresh
- *   - q / Esc / Ctrl-C .................... quit (the queue keeps working)
+ * Design: monochrome only — white / grey on black, selection shown by inverting
+ * the box (black on white). No accent colors.
  */
 
 const path = require('path');
@@ -29,9 +26,7 @@ try {
 } catch (_err) {
   console.error(
     'The queue UI needs the "blessed" package.\n' +
-      'Install it once with:  (cd "' +
-      path.join(__dirname) +
-      '" && npm install)\n'
+      'Install it once with:  (cd "' + __dirname + '" && npm install)\n'
   );
   process.exit(1);
 }
@@ -41,134 +36,228 @@ const store = require(path.join(__dirname, '..', 'scripts', 'lib', 'queue-store'
 const sessionId = process.argv[2] || process.env.CLAUDE_SESSION_ID || 'default';
 const queueFile = store.queuePath(sessionId);
 
+// Monochrome palette — only white, grey (ANSI bright-black = index 8) and black.
+// Using the numeric index avoids blessed's hex→palette mis-mapping and renders
+// as a true grey in 16-colour, 256-colour and truecolour terminals alike.
+const FG = 'white';
+const DIM = 8;
+const FAINT = 8;
+
 // ---------------------------------------------------------------------------
-// Screen + layout
+// Screen + static chrome
 // ---------------------------------------------------------------------------
 const screen = blessed.screen({
   smartCSR: true,
   title: `claude-queue · ${sessionId}`,
   mouse: true,
+  fullUnicode: true,
 });
 
 const header = blessed.box({
   parent: screen,
   top: 0,
-  left: 0,
-  width: '100%',
-  height: 3,
+  left: 2,
+  right: 2,
+  height: 1,
   tags: true,
-  border: 'line',
-  style: { border: { fg: 'cyan' } },
-  content: '',
+  style: { fg: FG },
 });
 
 const input = blessed.textbox({
   parent: screen,
-  top: 3,
-  left: 0,
-  width: '100%',
+  top: 2,
+  left: 2,
+  right: 2,
   height: 3,
-  border: 'line',
-  label: ' Add a task (Enter to queue) ',
+  border: { type: 'line' },
+  label: ' new task ',
   inputOnFocus: true,
   mouse: true,
   keys: true,
-  style: { border: { fg: 'green' }, focus: { border: { fg: 'yellow' } } },
-});
-
-const list = blessed.list({
-  parent: screen,
-  top: 6,
-  left: 0,
-  width: '100%',
-  bottom: 4,
-  border: 'line',
-  label: ' Queue ',
-  mouse: true,
-  keys: true,
-  vi: true,
-  tags: true,
-  scrollbar: { ch: ' ', style: { bg: 'cyan' } },
   style: {
-    border: { fg: 'cyan' },
-    selected: { bg: 'blue', fg: 'white' },
-    item: { hover: { bg: 'grey' } },
+    fg: FG,
+    border: { fg: DIM },
+    label: { fg: DIM },
+    focus: { border: { fg: FG }, label: { fg: FG } },
   },
 });
 
-const removeBtn = blessed.button({
+// Scrollable region that holds one box per task.
+const listArea = blessed.box({
   parent: screen,
+  top: 5,
+  left: 2,
+  right: 2,
   bottom: 1,
-  left: 1,
-  width: 12,
-  height: 3,
-  content: ' Remove ',
-  align: 'center',
-  valign: 'middle',
+  scrollable: true,
+  alwaysScroll: true,
   mouse: true,
-  border: 'line',
-  style: { border: { fg: 'red' }, focus: { bg: 'red' }, hover: { bg: 'red' } },
+  keys: true,
+  scrollbar: { ch: '│', style: { fg: FAINT } },
+  style: { fg: FG },
 });
 
 const footer = blessed.box({
   parent: screen,
   bottom: 0,
-  left: 14,
-  width: '100%-14',
+  left: 2,
+  right: 2,
   height: 1,
   tags: true,
+  style: { fg: FAINT },
   content:
-    '{grey-fg}Enter add · d remove · J/K move · r refresh · q quit{/grey-fg}',
+    '{|}↑↓ select   ⇧↑↓ move   ⏎/a add   d remove   q quit',
 });
 
 // ---------------------------------------------------------------------------
-// Rendering
+// State
 // ---------------------------------------------------------------------------
 let state = { queue: [], done: [] };
+let selected = 0;
+let taskBoxes = []; // live blessed children, rebuilt each render
 
+function clamp(n, lo, hi) {
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function truncate(text, width) {
+  const t = String(text).replace(/\s+/g, ' ').trim();
+  if (t.length <= width) return t;
+  return t.slice(0, Math.max(0, width - 1)) + '…';
+}
+
+// ---------------------------------------------------------------------------
+// Render
+// ---------------------------------------------------------------------------
 function render() {
   state = store.read(sessionId);
-
   const pending = state.queue.length;
-  const done = state.done.length;
+  selected = clamp(selected, 0, Math.max(0, pending - 1));
+
   header.setContent(
-    `{bold}claude-queue{/bold}   session {cyan-fg}${sessionId}{/cyan-fg}   ` +
-      `{green-fg}${pending} queued{/green-fg} · {grey-fg}${done} done{/grey-fg}`
+    `{bold}claude-queue{/bold}  ${sessionId}` +
+      `{|}${pending} queued · ${state.done.length} done`
   );
 
-  const rows = [];
-  state.queue.forEach((it, i) => {
-    rows.push(`{green-fg}${String(i + 1).padStart(2)}{/green-fg}  ${escape(it.text)}`);
+  // Tear down old task boxes.
+  taskBoxes.forEach((b) => b.destroy());
+  taskBoxes = [];
+
+  const innerW = listArea.width - 2; // minus scrollbar gutter
+  let top = 0;
+
+  if (pending === 0) {
+    const empty = blessed.box({
+      parent: listArea,
+      top: 1,
+      left: 1,
+      height: 1,
+      content: 'queue is empty — add a task above',
+      style: { fg: FAINT },
+    });
+    taskBoxes.push(empty);
+  }
+
+  state.queue.forEach((item, i) => {
+    const isSel = i === selected;
+    const box = blessed.box({
+      parent: listArea,
+      top,
+      left: 0,
+      width: innerW,
+      height: 3,
+      border: { type: 'line' },
+      mouse: true,
+      tags: false,
+      style: isSel
+        ? { bg: 'white', fg: 'black', border: { fg: 'white' } }
+        : { fg: FG, border: { fg: DIM } },
+    });
+
+    const num = blessed.text({
+      parent: box,
+      top: 0,
+      left: 1,
+      content: String(i + 1).padStart(2, ' '),
+      style: isSel ? { bg: 'white', fg: 'black', bold: true } : { fg: DIM },
+    });
+
+    blessed.text({
+      parent: box,
+      top: 0,
+      left: 5,
+      content: truncate(item.text, innerW - 5 - 8),
+      style: isSel ? { bg: 'white', fg: 'black' } : { fg: FG },
+    });
+
+    // Reorder / remove handles on the right.
+    const handles = [
+      { ch: '▲', dx: 7, fn: () => move(i, -1) },
+      { ch: '▼', dx: 5, fn: () => move(i, 1) },
+      { ch: '✕', dx: 2, fn: () => removeAt(i) },
+    ];
+    handles.forEach((h) => {
+      const btn = blessed.box({
+        parent: box,
+        top: 0,
+        right: h.dx,
+        width: 1,
+        height: 1,
+        content: h.ch,
+        mouse: true,
+        clickable: true,
+        style: isSel
+          ? { bg: 'white', fg: 'black', hover: { fg: 'white', bg: 'black' } }
+          : { fg: DIM, hover: { fg: FG } },
+      });
+      btn.on('click', (data) => {
+        h.fn();
+        return data; // swallow so the parent box click doesn't double-fire
+      });
+    });
+
+    box.on('click', () => {
+      selected = i;
+      render();
+    });
+
+    taskBoxes.push(box, num);
+    top += 3;
   });
+
+  // A faint "done" tail so you can see what's already been picked up.
   if (state.done.length) {
-    rows.push('{grey-fg}── done ──{/grey-fg}');
-    state.done.slice(-5).forEach((it) => {
-      rows.push(`{grey-fg} ✓  ${escape(it.text)}{/grey-fg}`);
+    const div = blessed.box({
+      parent: listArea,
+      top: top + 0,
+      left: 1,
+      height: 1,
+      content: '─ done ' + '─'.repeat(Math.max(0, innerW - 9)),
+      style: { fg: FAINT },
+    });
+    taskBoxes.push(div);
+    top += 1;
+    state.done.slice(-4).forEach((item) => {
+      const d = blessed.box({
+        parent: listArea,
+        top,
+        left: 1,
+        height: 1,
+        content: '✓ ' + truncate(item.text, innerW - 4),
+        style: { fg: FAINT },
+      });
+      taskBoxes.push(d);
+      top += 1;
     });
   }
-  if (rows.length === 0) {
-    rows.push('{grey-fg}(empty — type a task above and press Enter){/grey-fg}');
-  }
 
-  const prevSelected = list.selected;
-  list.setItems(rows);
-  // Keep selection within the pending range.
-  if (pending > 0) {
-    list.select(Math.min(prevSelected, pending - 1));
-  }
+  // Keep the selected box in view.
+  const selTop = selected * 3;
+  if (selTop < listArea.childBase) listArea.scrollTo(selTop);
+  else if (selTop + 3 > listArea.childBase + listArea.height)
+    listArea.scrollTo(selTop + 3);
+
   screen.render();
-}
-
-function escape(text) {
-  // Show multi-line tasks on one row; blessed tag-escape braces.
-  return String(text).replace(/\n/g, ' ⏎ ').replace(/\{/g, '{open}').replace(/\}/g, '{close}');
-}
-
-// The currently selected *pending* index (done rows are not selectable targets).
-function selectedPendingIndex() {
-  const idx = list.selected;
-  if (idx < 0 || idx >= state.queue.length) return -1;
-  return idx;
 }
 
 // ---------------------------------------------------------------------------
@@ -180,76 +269,78 @@ function addTask(text) {
   render();
 }
 
-function removeSelected() {
-  const idx = selectedPendingIndex();
-  if (idx >= 0) {
-    store.removeAt(sessionId, idx);
-    render();
-  }
+function removeAt(i) {
+  store.removeAt(sessionId, i);
+  if (selected >= i) selected = Math.max(0, selected - 1);
+  render();
 }
 
-function move(delta) {
-  const idx = selectedPendingIndex();
-  if (idx < 0) return;
-  const to = idx + delta;
+function move(i, delta) {
+  const to = i + delta;
   if (to < 0 || to >= state.queue.length) return;
-  store.reorder(sessionId, idx, to);
+  store.reorder(sessionId, i, to);
+  selected = to;
   render();
-  list.select(to);
+}
+
+// ---------------------------------------------------------------------------
+// Input wiring
+// ---------------------------------------------------------------------------
+function focusInput() {
+  input.focus();
   screen.render();
 }
 
-// ---------------------------------------------------------------------------
-// Wiring
-// ---------------------------------------------------------------------------
 input.on('submit', (value) => {
   addTask(value);
   input.clearValue();
-  input.focus();
+  input.focus(); // stay in "add" mode for rapid entry
   screen.render();
 });
 input.on('cancel', () => {
-  list.focus();
+  listArea.focus();
   screen.render();
 });
 
-removeBtn.on('press', removeSelected);
-
-list.key(['d', 'delete'], removeSelected);
-list.key(['J', 'S-down'], () => move(1));
-list.key(['K', 'S-up'], () => move(-1));
-list.key('r', render);
-list.key(['i', 'a'], () => {
-  input.focus();
-  screen.render();
+// Navigation / shortcuts (active when the list has focus).
+listArea.key(['up', 'k'], () => {
+  selected = clamp(selected - 1, 0, state.queue.length - 1);
+  render();
 });
+listArea.key(['down', 'j'], () => {
+  selected = clamp(selected + 1, 0, state.queue.length - 1);
+  render();
+});
+listArea.key(['S-up', 'K'], () => move(selected, -1));
+listArea.key(['S-down', 'J'], () => move(selected, 1));
+listArea.key(['d', 'delete', 'backspace'], () => {
+  if (state.queue.length) removeAt(selected);
+});
+listArea.key(['a', 'i', 'enter'], focusInput);
+listArea.key('r', render);
 
 screen.key(['q', 'C-c'], () => process.exit(0));
 screen.key('escape', () => {
-  // Esc from the list quits; from the input it just defocuses (handled above).
-  if (screen.focused === list) process.exit(0);
+  if (screen.focused === listArea) process.exit(0);
 });
 screen.key('tab', () => {
-  if (screen.focused === input) list.focus();
-  else input.focus();
+  if (screen.focused === input) listArea.focus();
+  else focusInput();
   screen.render();
 });
 
-// Live-refresh when the hook (or another process) changes the file.
+// Live refresh when the hook (or anything) changes the queue file.
 let watchTimer = null;
 try {
   fs.watch(store.queueDir(), (_evt, fname) => {
     if (fname && fname === path.basename(queueFile)) {
       clearTimeout(watchTimer);
-      watchTimer = setTimeout(render, 80); // debounce rapid temp/rename events
+      watchTimer = setTimeout(render, 80);
     }
   });
 } catch (_err) {
-  // If watching is unavailable, fall back to a gentle poll.
   setInterval(render, 1000);
 }
 
-// First paint, focus the input so the user can type immediately.
 render();
-input.focus();
-screen.render();
+focusInput();
