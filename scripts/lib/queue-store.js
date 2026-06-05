@@ -10,10 +10,12 @@
  *   - the terminal UI (ui/queue-ui.js)      — appends / removes / reorders items
  *   - the test suite                        — exercises every operation
  *
- * Because the UI and the hook can touch the file at the same moment, every
- * write goes through a temp file + atomic rename(), and the file format is
- * resilient: a missing, empty, or corrupt file is treated as an empty queue
- * rather than throwing.
+ * Because the UI and the hook can touch the file at the same moment, two things
+ * protect it: (1) every read-modify-write runs under a short-lived cross-process
+ * lock (withLock) so concurrent mutations can't lose each other's updates, and
+ * (2) each write goes through a temp file + atomic rename() so a reader never
+ * sees a half-written file. The format is also resilient: a missing, empty, or
+ * corrupt file is treated as an empty queue rather than throwing.
  *
  * File shape:
  *   {
@@ -52,6 +54,51 @@ function queuePath(sessionId) {
 
 function ensureDir() {
   fs.mkdirSync(queueDir(), { recursive: true });
+}
+
+/** Synchronous millisecond sleep (these helpers run in short-lived CLI processes). */
+function sleepMs(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/**
+ * Run `fn` while holding a per-session cross-process lock, so a read-modify-write
+ * in one process (e.g. the UI appending) can't be clobbered by a concurrent one
+ * in another (e.g. the Stop hook popping). The lock is an O_EXCL lock file next
+ * to the queue file; a lock older than 5s is assumed stale (crashed holder) and
+ * stolen, and after 2s of contention we proceed anyway so we can never deadlock.
+ */
+function withLock(sessionId, fn) {
+  ensureDir();
+  const lock = queuePath(sessionId) + '.lock';
+  const deadline = Date.now() + 2000;
+  let fd = null;
+  for (;;) {
+    try {
+      fd = fs.openSync(lock, 'wx');
+      break;
+    } catch (err) {
+      if (err.code !== 'EEXIST') throw err;
+      try {
+        if (Date.now() - fs.statSync(lock).mtimeMs > 5000) {
+          fs.unlinkSync(lock); // steal a stale lock
+          continue;
+        }
+      } catch (_e) {
+        continue; // lock vanished between open and stat — retry
+      }
+      if (Date.now() > deadline) break; // give up waiting rather than hang
+      sleepMs(20);
+    }
+  }
+  try {
+    return fn();
+  } finally {
+    if (fd !== null) {
+      try { fs.closeSync(fd); } catch (_e) {}
+      try { fs.unlinkSync(lock); } catch (_e) {}
+    }
+  }
 }
 
 function emptyState(sessionId) {
@@ -115,11 +162,13 @@ function newItem(text) {
 function append(sessionId, text) {
   const trimmed = String(text == null ? '' : text).trim();
   if (!trimmed) return null;
-  const state = read(sessionId);
-  const item = newItem(trimmed);
-  state.queue.push(item);
-  write(sessionId, state);
-  return item;
+  return withLock(sessionId, () => {
+    const state = read(sessionId);
+    const item = newItem(trimmed);
+    state.queue.push(item);
+    write(sessionId, state);
+    return item;
+  });
 }
 
 /**
@@ -127,37 +176,43 @@ function append(sessionId, text) {
  * Returns the popped item, or null if the queue is empty.
  */
 function popHead(sessionId) {
-  const state = read(sessionId);
-  if (state.queue.length === 0) return null;
-  const item = state.queue.shift();
-  state.done.push({ ...item, doneAt: new Date().toISOString() });
-  write(sessionId, state);
-  return item;
+  return withLock(sessionId, () => {
+    const state = read(sessionId);
+    if (state.queue.length === 0) return null;
+    const item = state.queue.shift();
+    state.done.push({ ...item, doneAt: new Date().toISOString() });
+    write(sessionId, state);
+    return item;
+  });
 }
 
 /** Remove a pending item by index (does not move it to done). Returns the removed item or null. */
 function removeAt(sessionId, index) {
-  const state = read(sessionId);
-  if (index < 0 || index >= state.queue.length) return null;
-  const [removed] = state.queue.splice(index, 1);
-  write(sessionId, state);
-  return removed;
+  return withLock(sessionId, () => {
+    const state = read(sessionId);
+    if (index < 0 || index >= state.queue.length) return null;
+    const [removed] = state.queue.splice(index, 1);
+    write(sessionId, state);
+    return removed;
+  });
 }
 
 /** Move a pending item from one index to another. Returns the updated queue or null on bad index. */
 function reorder(sessionId, from, to) {
-  const state = read(sessionId);
-  const n = state.queue.length;
-  if (from < 0 || from >= n || to < 0 || to >= n) return null;
-  const [moved] = state.queue.splice(from, 1);
-  state.queue.splice(to, 0, moved);
-  write(sessionId, state);
-  return state.queue;
+  return withLock(sessionId, () => {
+    const state = read(sessionId);
+    const n = state.queue.length;
+    if (from < 0 || from >= n || to < 0 || to >= n) return null;
+    const [moved] = state.queue.splice(from, 1);
+    state.queue.splice(to, 0, moved);
+    write(sessionId, state);
+    return state.queue;
+  });
 }
 
 /** Clear everything (pending + done) for a session. */
 function clear(sessionId) {
-  return write(sessionId, emptyState(sessionId));
+  return withLock(sessionId, () => write(sessionId, emptyState(sessionId)));
 }
 
 module.exports = {

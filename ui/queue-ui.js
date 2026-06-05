@@ -110,11 +110,19 @@ const footer = blessed.box({
 });
 
 // ---------------------------------------------------------------------------
-// State
+// State + layout
 // ---------------------------------------------------------------------------
 let state = { queue: [], done: [] };
 let selected = 0;
-let taskBoxes = []; // live blessed children, rebuilt each render
+let taskBoxes = []; // direct children of listArea, rebuilt each render
+let innerW = 24; // task-box width; refreshed each render for click hit-testing
+
+const ROW_H = 3; // height of one task box (top border / content / bottom border)
+const TEXT_LEFT = 4; // content column where the task text begins
+
+// Shared, unit-tested geometry for the ▲ / ▼ / ✕ handles (see ui/layout.js), so
+// the rendered glyph position and its clickable target can never drift apart.
+const { handleCols, hitRegion } = require(path.join(__dirname, 'layout'));
 
 function clamp(n, lo, hi) {
   return Math.max(lo, Math.min(hi, n));
@@ -122,8 +130,14 @@ function clamp(n, lo, hi) {
 
 function truncate(text, width) {
   const t = String(text).replace(/\s+/g, ' ').trim();
-  if (t.length <= width) return t;
-  return t.slice(0, Math.max(0, width - 1)) + '…';
+  const w = Math.max(1, width);
+  if (t.length <= w) return t;
+  return t.slice(0, Math.max(0, w - 1)) + '…';
+}
+
+// blessed parses {tags}; strip braces from untrusted strings shown in tag mode.
+function notag(s) {
+  return String(s).replace(/[{}]/g, '');
 }
 
 // ---------------------------------------------------------------------------
@@ -135,94 +149,71 @@ function render() {
   selected = clamp(selected, 0, Math.max(0, pending - 1));
 
   header.setContent(
-    `{bold}claude-queue{/bold}  ${sessionId}` +
+    `{bold}claude-queue{/bold}  ${notag(sessionId)}` +
       `{|}${pending} queued · ${state.done.length} done`
   );
 
-  // Tear down old task boxes.
+  // Tear down the previous frame's children. The task boxes carry no mouse
+  // handlers (all clicks are handled once, on listArea), so nothing leaks into
+  // screen.clickable across re-renders.
   taskBoxes.forEach((b) => b.destroy());
   taskBoxes = [];
 
-  const innerW = listArea.width - 2; // minus scrollbar gutter
+  innerW = Math.max(24, listArea.width - 2); // minus the scrollbar gutter
+  const contentW = innerW - 2; // inside the box border
+  const cols = handleCols(contentW);
   let top = 0;
 
   if (pending === 0) {
-    const empty = blessed.box({
-      parent: listArea,
-      top: 1,
-      left: 1,
-      height: 1,
-      content: 'queue is empty — add a task above',
-      style: { fg: FAINT },
-    });
-    taskBoxes.push(empty);
+    taskBoxes.push(
+      blessed.box({
+        parent: listArea,
+        top: 1,
+        left: 1,
+        height: 1,
+        content: 'queue is empty — add a task above',
+        style: { fg: FAINT },
+      })
+    );
   }
 
   state.queue.forEach((item, i) => {
     const isSel = i === selected;
+    const fg = isSel ? 'black' : FG;
+    const dim = isSel ? 'black' : DIM;
+    const bg = isSel ? 'white' : undefined;
     const box = blessed.box({
       parent: listArea,
       top,
       left: 0,
       width: innerW,
-      height: 3,
+      height: ROW_H,
       border: { type: 'line' },
-      mouse: true,
       tags: false,
-      style: isSel
-        ? { bg: 'white', fg: 'black', border: { fg: 'white' } }
-        : { fg: FG, border: { fg: DIM } },
-    });
-
-    const num = blessed.text({
-      parent: box,
-      top: 0,
-      left: 1,
-      content: String(i + 1).padStart(2, ' '),
-      style: isSel ? { bg: 'white', fg: 'black', bold: true } : { fg: DIM },
+      style: { bg, fg, border: { fg: isSel ? 'white' : DIM } },
     });
 
     blessed.text({
       parent: box,
       top: 0,
-      left: 5,
-      content: truncate(item.text, innerW - 5 - 8),
-      style: isSel ? { bg: 'white', fg: 'black' } : { fg: FG },
+      left: 1,
+      content: String(i + 1).padStart(2, ' '),
+      style: { bg, fg: dim, bold: isSel },
+    });
+    blessed.text({
+      parent: box,
+      top: 0,
+      left: TEXT_LEFT,
+      content: truncate(item.text, cols.up - TEXT_LEFT - 1),
+      style: { bg, fg },
+    });
+    // Visual-only handles; clicks on them are resolved by listArea's handler.
+    [['▲', cols.up], ['▼', cols.down], ['✕', cols.remove]].forEach(([ch, x]) => {
+      blessed.text({ parent: box, top: 0, left: x, content: ch, style: { bg, fg: dim } });
     });
 
-    // Reorder / remove handles on the right.
-    const handles = [
-      { ch: '▲', dx: 7, fn: () => move(i, -1) },
-      { ch: '▼', dx: 5, fn: () => move(i, 1) },
-      { ch: '✕', dx: 2, fn: () => removeAt(i) },
-    ];
-    handles.forEach((h) => {
-      const btn = blessed.box({
-        parent: box,
-        top: 0,
-        right: h.dx,
-        width: 1,
-        height: 1,
-        content: h.ch,
-        mouse: true,
-        clickable: true,
-        style: isSel
-          ? { bg: 'white', fg: 'black', hover: { fg: 'white', bg: 'black' } }
-          : { fg: DIM, hover: { fg: FG } },
-      });
-      btn.on('click', (data) => {
-        h.fn();
-        return data; // swallow so the parent box click doesn't double-fire
-      });
-    });
-
-    box.on('click', () => {
-      selected = i;
-      render();
-    });
-
-    taskBoxes.push(box, num);
-    top += 3;
+    taskBoxes.push(box);
+    top += ROW_H;
   });
 
   // A faint "done" tail so you can see what's already been picked up.
@@ -251,11 +242,13 @@ function render() {
     });
   }
 
-  // Keep the selected box in view.
-  const selTop = selected * 3;
+  // Keep the selected box in view. scrollTo(offset) makes `offset` the top
+  // visible content row, so to reveal a box that fell off the bottom we scroll
+  // to (its end - viewport height), not to its end.
+  const selTop = selected * ROW_H;
   if (selTop < listArea.childBase) listArea.scrollTo(selTop);
-  else if (selTop + 3 > listArea.childBase + listArea.height)
-    listArea.scrollTo(selTop + 3);
+  else if (selTop + ROW_H > listArea.childBase + listArea.height)
+    listArea.scrollTo(selTop + ROW_H - listArea.height);
 
   screen.render();
 }
@@ -302,6 +295,28 @@ input.on('cancel', () => {
   screen.render();
 });
 
+// All mouse interaction is resolved here, on the one clickable element, by
+// mapping the click coordinate back to a task row + handle band. This avoids
+// overlapping per-box clickables (which in blessed all fire on one click and
+// accumulate in screen.clickable across re-renders).
+listArea.on('click', (data) => {
+  if (!state.queue.length) return;
+  const row = data.y - listArea.atop + listArea.childBase;
+  const idx = Math.floor(row / ROW_H);
+  if (idx < 0 || idx >= state.queue.length) return; // a done/empty row
+  listArea.focus();
+  const withinBox = row - idx * ROW_H; // 0 top border, 1 content, 2 bottom border
+  const contentX = data.x - listArea.aleft - 1; // -1 for the box's left border
+  if (withinBox === 1) {
+    const region = hitRegion(contentX, innerW - 2);
+    if (region === 'up') return move(idx, -1);
+    if (region === 'down') return move(idx, 1);
+    if (region === 'remove') return removeAt(idx);
+  }
+  selected = idx;
+  render();
+});
+
 // Navigation / shortcuts (active when the list has focus).
 listArea.key(['up', 'k'], () => {
   selected = clamp(selected - 1, 0, state.queue.length - 1);
@@ -339,7 +354,16 @@ try {
     }
   });
 } catch (_err) {
-  setInterval(render, 1000);
+  // fs.watch unsupported here — poll, but only re-render when the file changed.
+  let lastMtime = 0;
+  setInterval(() => {
+    let mtime = 0;
+    try { mtime = fs.statSync(queueFile).mtimeMs; } catch (_e) {}
+    if (mtime !== lastMtime) {
+      lastMtime = mtime;
+      render();
+    }
+  }, 1000);
 }
 
 render();

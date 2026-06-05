@@ -5,6 +5,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawn } = require('node:child_process');
 
 let tmpDir;
 
@@ -126,6 +127,27 @@ test('session ids with unsafe characters map to a safe filename', () => {
   // dir — no path separators survive sanitization, so no traversal is possible.
   assert.strictEqual(path.dirname(file), tmpDir, 'stays directly in the queue dir');
   assert.ok(!path.basename(file).includes('/'), 'no path separator in the name');
+});
+
+test('concurrent appends from many processes do not lose updates', async () => {
+  const store = freshStore();
+  const storePath = require.resolve('../scripts/lib/queue-store');
+  const N = 25;
+  await Promise.all(
+    Array.from({ length: N }, (_, i) =>
+      new Promise((resolve, reject) => {
+        const code = `require(${JSON.stringify(storePath)}).append('cc','task-${i}')`;
+        const p = spawn(process.execPath, ['-e', code], {
+          env: { ...process.env, CLAUDE_QUEUE_DIR: tmpDir },
+        });
+        p.on('error', reject);
+        p.on('exit', (c) => (c === 0 ? resolve() : reject(new Error(`exit ${c}`))));
+      })
+    )
+  );
+  // Without the cross-process lock, interleaved read-modify-write would drop
+  // some of these; the lock guarantees all N survive.
+  assert.strictEqual(store.read('cc').queue.length, N);
 });
 
 test('clear() empties both queue and done', () => {

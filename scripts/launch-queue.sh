@@ -11,13 +11,23 @@
 
 set -euo pipefail
 
-SESSION_ID="${1:-${CLAUDE_SESSION_ID:-default}}"
+RAW_SESSION_ID="${1:-${CLAUDE_SESSION_ID:-default}}"
 
 # Resolve the plugin root from this script's location (scripts/ -> plugin root).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 UI_DIR="${PLUGIN_ROOT}/ui"
 UI_ENTRY="${UI_DIR}/queue-ui.js"
+
+# Sanitize the session id with the SAME function the queue store and Stop hook
+# use (safeSessionId), so all three resolve to the same queue file even for
+# non-ASCII ids — and so the id can't carry shell/AppleScript metacharacters into
+# the command we hand to the terminal below. Fall back to a byte-wise scrub if
+# node is somehow unavailable.
+SESSION_ID="$(node -e 'process.stdout.write(require(process.argv[1]).safeSessionId(process.argv[2]))' \
+  "${SCRIPT_DIR}/lib/queue-store.js" "${RAW_SESSION_ID}" 2>/dev/null \
+  || printf '%s' "${RAW_SESSION_ID}" | tr -c 'A-Za-z0-9._-' '_')"
+[ -z "${SESSION_ID}" ] && SESSION_ID="default"
 
 # Ensure the queue directory exists.
 mkdir -p "${CLAUDE_QUEUE_DIR:-${HOME}/.claude-queue}"
@@ -63,6 +73,12 @@ EOF
 }
 
 open_linux() {
+  # No display → opening a GUI terminal would silently fail; use the manual
+  # fallback instead (covers headless boxes and plain SSH sessions).
+  if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    return 1
+  fi
+
   # A new interactive shell so the TUI has a controlling terminal; keep it open
   # if node exits so the user can read any message.
   local sh_cmd="${RUN_CMD}; echo; echo '[claude-queue UI closed]'; exec \${SHELL:-bash}"

@@ -24,16 +24,31 @@ const store = require('./lib/queue-store');
 function readStdin() {
   return new Promise((resolve) => {
     let data = '';
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      resolve(data);
+    };
     if (process.stdin.isTTY) {
-      resolve('');
+      finish();
       return;
     }
+    // Safety valve: never let a caller that holds stdin open hang the turn.
+    const timer = setTimeout(finish, 3000);
+    if (timer.unref) timer.unref();
     process.stdin.setEncoding('utf8');
     process.stdin.on('data', (chunk) => {
       data += chunk;
     });
-    process.stdin.on('end', () => resolve(data));
-    process.stdin.on('error', () => resolve(data));
+    process.stdin.on('end', () => {
+      clearTimeout(timer);
+      finish();
+    });
+    process.stdin.on('error', () => {
+      clearTimeout(timer);
+      finish();
+    });
   });
 }
 
