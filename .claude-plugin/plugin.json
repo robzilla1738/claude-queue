@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "claude-queue",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Queue follow-up tasks in a clickable terminal UI; the running Claude session finishes its current task, then automatically picks up the next queued task, draining the queue one item at a time.",
   "author": {
     "name": "Robert Courson"
