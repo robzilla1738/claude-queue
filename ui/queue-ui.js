@@ -9,10 +9,18 @@
  * Each queued task is its own box. Click a box to select it; drag it up or
  * down to reorder (or click the ▲ / ▼ handles, or use Shift+↑/↓); remove with
  * ⌫ / d / the ✕ handle. The row under the mouse brightens so you can see what
- * a click will hit. New tasks are typed into the box at the top. The list
- * reads and writes the same per-session queue file as the Stop hook, so
+ * a click will hit. New tasks are typed into the box at the top; the task
+ * Claude is working on right now shows in the ▶ strip below it, and p pauses
+ * the queue (Claude finishes the current task but starts nothing new). The
+ * list reads and writes the same per-session queue file as the Stop hook, so
  * whatever is here is what the running Claude session works through, one item
  * at a time, and it refreshes live (fs.watch) as items are consumed.
+ *
+ * Exactly one UI runs per session: startup claims a pid file, and a second
+ * instance (however it was spawned — duplicate command, window restoration,
+ * a terminal quirk) sees the claim fail and exits immediately. The same pid
+ * file tells the Stop hook the window is open, which is what makes tasks
+ * added to an otherwise idle session get picked up at once.
  *
  * Design: monochrome only — white / grey on black, selection shown by inverting
  * the box (black on white), hover shown by brightening grey to white. No accent
@@ -52,6 +60,18 @@ if (!sessionId) {
   process.exit(1);
 }
 const queueFile = store.queuePath(sessionId);
+
+// Single-instance guard — claim the session's UI pid file BEFORE touching the
+// terminal (blessed.screen switches to the alternate screen; a duplicate must
+// exit without ever doing that). If a live UI already holds the claim, this
+// window is a duplicate: say so and close.
+if (!store.claimUiPid(sessionId)) {
+  console.log(`claude-queue: a queue window is already open for session ${sessionId}.`);
+  process.exit(0);
+}
+process.on('exit', () => store.releaseUiPid(sessionId));
+process.on('SIGTERM', () => process.exit(0));
+process.on('SIGINT', () => process.exit(0));
 
 // Monochrome palette — only white, grey (ANSI bright-black = index 8) and black.
 // Using the numeric index avoids blessed's hex→palette mis-mapping and renders
@@ -116,6 +136,19 @@ const input = blessed.textbox({
 });
 input.on('focus', () => input.readInput());
 
+// One-line strip for the task Claude is working on right now. It lives on the
+// gap row between the input and the list — outside listArea on purpose, so the
+// list's row geometry and click hit-testing (ui/layout.js) are untouched.
+const activeStrip = blessed.box({
+  parent: screen,
+  top: 5,
+  left: 2,
+  right: 2,
+  height: 1,
+  tags: false,
+  style: { fg: FG },
+});
+
 // Scrollable region that holds one box per task (a blank gap row in between).
 // autoFocus:false — blessed's screen focuses any clickable element when a
 // click lands on it (screen.js 'element click'), INCLUDING the click it
@@ -145,13 +178,13 @@ const footer = blessed.box({
   height: 1,
   tags: true,
   style: { fg: FAINT },
-  content: '{|}↑↓ select · drag/⇧↑↓ move · ⏎/a add · e edit · d remove · q quit',
+  content: '{|}↑↓ select · drag/⇧↑↓ move · e edit · d remove · p pause · q quit',
 });
 
 // ---------------------------------------------------------------------------
 // State + layout
 // ---------------------------------------------------------------------------
-let state = { queue: [], done: [] };
+let state = { queue: [], active: null, done: [], paused: false };
 let selected = 0;
 let taskBoxes = []; // direct children of listArea, rebuilt each render
 let innerW = 24; // task-box width; refreshed each render for click hit-testing
@@ -208,7 +241,12 @@ function render() {
 
   header.setContent(
     `{bold}claude-queue{/bold}  ${notag(sessionId)}` +
-      `{|}${pending} queued · ${state.done.length} done`
+      `{|}${state.paused ? '{bold}PAUSED{/bold} · ' : ''}${pending} queued · ${state.done.length} done`
+  );
+
+  // The ▶ strip mirrors the task Claude is on right now (set by the Stop hook).
+  activeStrip.setContent(
+    state.active ? '▶ ' + truncate(state.active.text, Math.max(1, screen.width - 8)) : ''
   );
 
   // Tear down the previous frame's children. The task boxes carry no mouse
@@ -584,6 +622,10 @@ listArea.key(['a', 'i', 'enter'], () => {
 });
 listArea.key('e', () => {
   if (state.queue.length) startEdit(selected);
+});
+listArea.key('p', () => {
+  store.setPaused(sessionId, !state.paused);
+  render();
 });
 listArea.key('r', render);
 

@@ -156,9 +156,11 @@ for (const t of process.argv.slice(3)) store.append("smoke", t);
 }
 
 # pop_head — run the real Stop hook once, exactly as Claude Code would.
+# CQ_MAX_WAIT_MS bounds the hook's wait-for-new-tasks loop (the smoke UI holds
+# a live pid file, so an empty-queue hook would otherwise wait a very long time).
 pop_head() {
   printf '{"session_id":"smoke"}' \
-    | CLAUDE_QUEUE_DIR="${TMPQ}" node "${ROOT}/scripts/stop-hook.js" >/dev/null
+    | CLAUDE_QUEUE_DIR="${TMPQ}" CQ_MAX_WAIT_MS=1000 node "${ROOT}/scripts/stop-hook.js" >/dev/null
 }
 
 echo "# tmux-smoke: pane ${PANE_W}x${PANE_H}, handles at x=${UPX}/${DOWNX}/${REMX}, rows y=${Y0}/${Y1}/${Y2}"
@@ -308,7 +310,7 @@ pop_head                      # Claude finishes a turn: alpha is consumed
 sleep 0.3
 mouse 32 "${BODYX}" "${Y0}" M # keep dragging to the top
 mouse 0 "${BODYX}" "${Y0}" m  # release
-assert_shows 'the popped head landed in done' '✓ task alpha'
+assert_shows 'the popped head shows in the active strip' '▶ task alpha'
 if [ "$(queue_texts)" = 'task charlie|task bravo' ]; then
   ok 'mid-drag pop: the dragged item is tracked by id, nothing mis-moves'
 else
@@ -320,13 +322,46 @@ else
   ok 'the UI survived the mid-drag pop without errors'
 fi
 
-# --- 6. live refresh + done tail ---------------------------------------------
+# --- 6. live refresh: active strip + done tail --------------------------------
 
 start_ui 'one' 'two' 'three' 'four' 'five' 'six'
-for _ in 1 2 3 4 5; do pop_head; done
+for _ in 1 2 3 4 5 6; do pop_head; done
+# Six Stops: one..five finished (done), six just started (active), queue empty.
 assert_shows 'the done divider shows the total when truncated' '─ done (5)'
-assert_shows 'consumed tasks appear in the done tail' '✓ five'
-assert_shows 'the remaining task is renumbered' '1 six'
+assert_shows 'finished tasks appear in the done tail' '✓ five'
+assert_shows 'the in-progress task shows in the active strip' '▶ six'
+
+# --- 6b. pause / resume --------------------------------------------------------
+
+start_ui 'held task'
+keys Escape # hand focus to the list
+keys p
+assert_shows 'p shows the PAUSED flag in the header' 'PAUSED'
+pop_head # a Stop while paused must start nothing
+sleep 0.3
+if [ "$(queue_texts)" = 'held task' ]; then
+  ok 'a Stop while paused leaves the queue untouched'
+else
+  not_ok "a Stop while paused leaves the queue untouched (got: $(queue_texts))"
+fi
+keys p
+assert_absent 'p again resumes (PAUSED cleared)' 'PAUSED'
+
+# --- 6c. single instance ---------------------------------------------------------
+
+# The UI from 6b is still running and owns the session's ui pid file; a second
+# instance — however it gets spawned — must announce itself and exit at once.
+DUP_OUT="$(env CLAUDE_QUEUE_DIR="${TMPQ}" node "${ROOT}/ui/queue-ui.js" smoke 2>&1)"
+if printf '%s' "${DUP_OUT}" | grep -q 'already open'; then
+  ok 'a duplicate UI self-closes instead of binding the same session'
+else
+  not_ok "a duplicate UI self-closes instead of binding the same session (got: ${DUP_OUT})"
+fi
+if cap | grep -qF 'claude-queue'; then
+  ok 'the original UI survives the duplicate attempt'
+else
+  not_ok 'the original UI survives the duplicate attempt'
+fi
 
 # --- 7. resize reflows the layout ---------------------------------------------
 

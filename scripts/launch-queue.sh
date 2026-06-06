@@ -33,6 +33,14 @@ SESSION_ID="$(node -e 'process.stdout.write(require(process.argv[1]).safeSession
 QUEUE_DIR="${CLAUDE_QUEUE_DIR:-${HOME}/.claude-queue}"
 mkdir -p "${QUEUE_DIR}"
 
+# Housekeeping: drop queue files, wrapper scripts and stray write-temps from
+# sessions that haven't been touched in a week. Anything in use is mtime-fresh,
+# so live sessions are never matched; ui-*.pid files are owned (and removed)
+# by their UI process, so they are left alone here.
+find "${QUEUE_DIR}" -maxdepth 1 -type f \
+  \( -name 'open-queue-*.sh' -o -name 'queue-*.json' -o -name '*.tmp' \) \
+  -mtime +7 -delete 2>/dev/null || true
+
 # Make sure the UI's one dependency (blessed) is installed.
 if [ ! -d "${UI_DIR}/node_modules/blessed" ]; then
   if command -v npm >/dev/null 2>&1; then
@@ -76,10 +84,17 @@ manual_fallback() {
 # `open` / osascript exiting 0 only means the request was delivered, not that
 # the window or the UI process actually exists. Poll for a queue UI bound to
 # THIS session before reporting success, so a failed launch can never claim
-# the queue is ready while tasks would go nowhere.
+# the queue is ready while tasks would go nowhere. The UI's pid file is the
+# precise signal (written only by the instance that won the single-instance
+# claim); the pgrep check covers the brief window before the claim lands.
 verify_started() {
-  local i
+  local i pid
+  local pidfile="${QUEUE_DIR}/ui-${SESSION_ID}.pid"
   for i in $(seq 1 30); do
+    pid="$(cat "${pidfile}" 2>/dev/null || true)"
+    if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
+      return 0
+    fi
     if pgrep -f "queue-ui\.js ${SESSION_ID}" >/dev/null 2>&1; then
       return 0
     fi
@@ -89,18 +104,23 @@ verify_started() {
 }
 
 open_macos() {
-  # Prefer the terminal the user is already in; fall through to Terminal.app
-  # whenever that one can't be driven.
+  # Drive the terminal the user is already in; anything else gets Terminal.app.
+  # Each branch dispatches its launch request and returns — deliberately
+  # WITHOUT falling through to another terminal on a nonzero exit. `open -n`
+  # has been seen exiting nonzero while the window still appears, and a
+  # fall-through then opens a SECOND identical queue window in Terminal.app.
+  # verify_started() is the one arbiter of success; if the dispatch truly did
+  # nothing, the caller shows the manual fallback instead of guessing again.
   case "${TERM_PROGRAM:-}" in
     ghostty)
       # Ghostty has no scripting interface on macOS, so a fresh instance with
       # `-e <wrapper>` is the only programmatic window available. The single
-      # wrapper word sidesteps multi-arg quirks, and --window-save-state=never
-      # keeps this throwaway instance from saving windows that macOS would
-      # later "restore" as zombie queue windows.
-      if open -na Ghostty --args --window-save-state=never -e "${WRAPPER}" >/dev/null 2>&1; then
-        return 0
-      fi
+      # wrapper word sidesteps multi-arg quirks; -F (open fresh, an `open`
+      # flag) and --window-save-state=never (a Ghostty flag) both keep this
+      # throwaway instance from saving or restoring windows that macOS would
+      # otherwise "restore" as zombie queue windows.
+      open -na Ghostty -F --args --window-save-state=never -e "${WRAPPER}" >/dev/null 2>&1
+      return 0
       ;;
     iTerm.app)
       osascript >/dev/null 2>&1 <<EOF
@@ -109,7 +129,7 @@ tell application "iTerm"
   tell current session of current window to write text "\"${WRAPPER}\""
 end tell
 EOF
-      [ $? -eq 0 ] && return 0
+      return 0
       ;;
   esac
   # Default to Terminal.app.

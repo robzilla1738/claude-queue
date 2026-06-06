@@ -5,7 +5,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 
 let tmpDir;
 
@@ -202,4 +202,116 @@ test('clear() empties both queue and done', () => {
   const state = store.read('s1');
   assert.deepStrictEqual(state.queue, []);
   assert.deepStrictEqual(state.done, []);
+});
+
+test('advance() starts the head as active, then finishes it to done on the next call', () => {
+  const store = freshStore();
+  ['a', 'b'].forEach((t) => store.append('s1', t));
+
+  const first = store.advance('s1');
+  assert.strictEqual(first.text, 'a');
+  let state = store.read('s1');
+  assert.strictEqual(state.active.text, 'a');
+  assert.deepStrictEqual(state.queue.map((i) => i.text), ['b']);
+  assert.strictEqual(state.done.length, 0, 'in progress is not done');
+
+  const second = store.advance('s1');
+  assert.strictEqual(second.text, 'b');
+  state = store.read('s1');
+  assert.strictEqual(state.active.text, 'b');
+  assert.deepStrictEqual(state.done.map((i) => i.text), ['a']);
+  assert.ok(state.done[0].doneAt, 'finished item is timestamped');
+
+  assert.strictEqual(store.advance('s1'), null, 'nothing left to start');
+  state = store.read('s1');
+  assert.strictEqual(state.active, null, 'the last task is flushed to done');
+  assert.deepStrictEqual(state.done.map((i) => i.text), ['a', 'b']);
+});
+
+test('advance() while paused finishes the active task but starts nothing', () => {
+  const store = freshStore();
+  ['a', 'b'].forEach((t) => store.append('s1', t));
+  store.advance('s1'); // 'a' becomes active
+  store.setPaused('s1', true);
+
+  assert.strictEqual(store.advance('s1'), null);
+  const state = store.read('s1');
+  assert.strictEqual(state.active, null);
+  assert.deepStrictEqual(state.done.map((i) => i.text), ['a'], 'finished work still lands in done');
+  assert.deepStrictEqual(state.queue.map((i) => i.text), ['b'], "'b' stays pending");
+
+  store.setPaused('s1', false);
+  assert.strictEqual(store.advance('s1').text, 'b', 'unpausing resumes from the head');
+});
+
+test('advance() with nothing to do leaves the file untouched', () => {
+  const store = freshStore();
+  store.append('s1', 'a');
+  store.removeAt('s1', 0); // file exists; queue empty, no active
+  const before = fs.statSync(store.queuePath('s1')).mtimeMs;
+  assert.strictEqual(store.advance('s1'), null);
+  const after = fs.statSync(store.queuePath('s1')).mtimeMs;
+  assert.strictEqual(after, before, 'a no-op advance must not churn the mtime');
+});
+
+test('setPaused() persists the flag', () => {
+  const store = freshStore();
+  assert.strictEqual(store.setPaused('s1', true), true);
+  assert.strictEqual(store.read('s1').paused, true);
+  assert.strictEqual(store.setPaused('s1', false), false);
+  assert.strictEqual(store.read('s1').paused, false);
+});
+
+test('a version-1 file reads back with active:null and paused:false', () => {
+  const store = freshStore();
+  fs.writeFileSync(
+    store.queuePath('s1'),
+    JSON.stringify({
+      version: 1,
+      sessionId: 's1',
+      queue: [{ id: 'x', text: 'old task', addedAt: '2026-01-01T00:00:00.000Z' }],
+      done: [],
+    })
+  );
+  const state = store.read('s1');
+  assert.strictEqual(state.active, null);
+  assert.strictEqual(state.paused, false);
+  assert.strictEqual(state.queue[0].text, 'old task', 'v1 contents survive');
+});
+
+test('done history is capped', () => {
+  const store = freshStore();
+  for (let i = 0; i < 60; i++) store.append('s1', `t${i}`);
+  for (let i = 0; i <= 60; i++) store.advance('s1'); // last call flushes t59
+  const state = store.read('s1');
+  assert.strictEqual(state.done.length, 50);
+  assert.strictEqual(state.done[49].text, 't59', 'newest kept');
+  assert.strictEqual(state.done[0].text, 't10', 'oldest dropped');
+});
+
+test('UI pid file: claim, duplicate claim, steal, release', () => {
+  const store = freshStore();
+  assert.strictEqual(store.claimUiPid('s1'), true, 'first claim wins');
+  assert.strictEqual(fs.readFileSync(store.uiPidPath('s1'), 'utf8'), String(process.pid));
+
+  // A live holder blocks any duplicate…
+  assert.strictEqual(store.claimUiPid('s1'), false);
+  assert.deepStrictEqual(store.readUiPid('s1'), { pid: process.pid, alive: true });
+
+  // …but a dead holder's file is stolen.
+  const dead = spawnSync(process.execPath, ['-e', '']).pid; // exited → pid is free
+  fs.writeFileSync(store.uiPidPath('s1'), String(dead));
+  assert.strictEqual(store.readUiPid('s1').alive, false);
+  assert.strictEqual(store.claimUiPid('s1'), true, 'stale pid file is stolen');
+
+  store.releaseUiPid('s1');
+  assert.strictEqual(store.readUiPid('s1'), null);
+  assert.ok(!fs.existsSync(store.uiPidPath('s1')), 'our own claim is removed');
+});
+
+test("releaseUiPid() leaves another process's claim alone", () => {
+  const store = freshStore();
+  fs.writeFileSync(store.uiPidPath('s1'), String(process.pid + 1));
+  store.releaseUiPid('s1');
+  assert.ok(fs.existsSync(store.uiPidPath('s1')), 'not ours — left in place');
 });

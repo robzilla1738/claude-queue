@@ -19,11 +19,16 @@
  *
  * File shape:
  *   {
- *     "version": 1,
+ *     "version": 2,
  *     "sessionId": "<id>",
  *     "queue": [ { "id", "text", "addedAt" }, ... ],   // pending, head = next
- *     "done":  [ { "id", "text", "addedAt", "doneAt" }, ... ]  // consumed
+ *     "active": { "id", "text", "addedAt" } | null,    // what Claude is working on now
+ *     "done":  [ { "id", "text", "addedAt", "doneAt" }, ... ],  // finished (capped)
+ *     "paused": false                                  // true = don't start new tasks
  *   }
+ *
+ * Version 1 files (no `active`/`paused`) read back with active:null,
+ * paused:false — no migration step needed.
  */
 
 const fs = require('fs');
@@ -101,8 +106,19 @@ function withLock(sessionId, fn) {
   }
 }
 
+// `done` is a small visual history, not a log — cap it so the file (and the
+// UI's done tail source) can't grow without bound across a long session.
+const DONE_CAP = 50;
+
 function emptyState(sessionId) {
-  return { version: 1, sessionId: safeSessionId(sessionId), queue: [], done: [] };
+  return {
+    version: 2,
+    sessionId: safeSessionId(sessionId),
+    queue: [],
+    active: null,
+    done: [],
+    paused: false,
+  };
 }
 
 /** Read the full state for a session. Never throws; returns an empty state on any problem. */
@@ -127,6 +143,8 @@ function read(sessionId) {
   const state = emptyState(sessionId);
   if (Array.isArray(parsed.queue)) state.queue = parsed.queue.filter(isItem);
   if (Array.isArray(parsed.done)) state.done = parsed.done.filter(isItem);
+  if (isItem(parsed.active)) state.active = parsed.active;
+  state.paused = parsed.paused === true;
   return state;
 }
 
@@ -140,10 +158,12 @@ function write(sessionId, state) {
   const file = queuePath(sessionId);
   const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
   const payload = {
-    version: 1,
+    version: 2,
     sessionId: safeSessionId(sessionId),
     queue: Array.isArray(state.queue) ? state.queue : [],
-    done: Array.isArray(state.done) ? state.done : [],
+    active: isItem(state.active) ? state.active : null,
+    done: (Array.isArray(state.done) ? state.done : []).slice(-DONE_CAP),
+    paused: state.paused === true,
   };
   fs.writeFileSync(tmp, JSON.stringify(payload, null, 2));
   fs.renameSync(tmp, file); // atomic on POSIX
@@ -183,6 +203,46 @@ function popHead(sessionId) {
     state.done.push({ ...item, doneAt: new Date().toISOString() });
     write(sessionId, state);
     return item;
+  });
+}
+
+/**
+ * Advance the queue one step, atomically: the previously `active` item (if
+ * any) is finished — moved into `done` — and, unless the queue is paused, the
+ * head of `queue` becomes the new `active` item. Returns the new active item,
+ * or null when there is nothing to start (empty queue, or paused).
+ *
+ * This is the Stop hook's entry point: one call per turn end keeps `active`
+ * exactly in sync with what Claude is working on, so a crash mid-task leaves
+ * the task visibly active rather than falsely done. The write is skipped when
+ * nothing changed, so a polling caller doesn't churn the file's mtime (which
+ * would make the UI re-render on every poll tick).
+ */
+function advance(sessionId) {
+  return withLock(sessionId, () => {
+    const state = read(sessionId);
+    let changed = false;
+    if (state.active) {
+      state.done.push({ ...state.active, doneAt: new Date().toISOString() });
+      state.active = null;
+      changed = true;
+    }
+    if (!state.paused && state.queue.length > 0) {
+      state.active = state.queue.shift();
+      changed = true;
+    }
+    if (changed) write(sessionId, state);
+    return state.active;
+  });
+}
+
+/** Set the paused flag. While paused, advance() finishes the active item but starts nothing new. */
+function setPaused(sessionId, paused) {
+  return withLock(sessionId, () => {
+    const state = read(sessionId);
+    state.paused = paused === true;
+    write(sessionId, state);
+    return state.paused;
   });
 }
 
@@ -256,6 +316,84 @@ function clear(sessionId) {
   return withLock(sessionId, () => write(sessionId, emptyState(sessionId)));
 }
 
+// ---------------------------------------------------------------------------
+// UI pid file — single source of truth for "is the queue window open?".
+//
+// The UI claims `ui-<session>.pid` (O_EXCL) on startup and removes it on exit.
+// Two consumers depend on it:
+//   - a second UI for the same session sees the claim fail and exits at once,
+//     so a duplicate window (whatever spawned it) self-closes;
+//   - the Stop hook reads it to decide whether to wait for new tasks (window
+//     open) or let the session go idle (window closed).
+// ---------------------------------------------------------------------------
+
+/** Absolute path to the UI pid file for a given session. */
+function uiPidPath(sessionId) {
+  return path.join(queueDir(), `ui-${safeSessionId(sessionId)}.pid`);
+}
+
+/** True when `pid` is a live process. EPERM means alive-but-not-ours. */
+function isPidAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err.code === 'EPERM';
+  }
+}
+
+/**
+ * Try to claim the UI pid file for this process. Returns true when this
+ * process now owns it, false when a live UI already holds it. A pid file left
+ * by a dead process is stolen. Bounded retries keep a racing steal from
+ * looping forever — whichever O_EXCL create wins owns the file.
+ */
+function claimUiPid(sessionId) {
+  ensureDir();
+  const file = uiPidPath(sessionId);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const fd = fs.openSync(file, 'wx');
+      fs.writeSync(fd, String(process.pid));
+      fs.closeSync(fd);
+      return true;
+    } catch (err) {
+      if (err.code !== 'EEXIST') return false;
+      let holder = NaN;
+      try {
+        holder = parseInt(fs.readFileSync(file, 'utf8').trim(), 10);
+      } catch (_e) {
+        continue; // vanished between open and read — retry the claim
+      }
+      if (isPidAlive(holder)) return false;
+      try { fs.unlinkSync(file); } catch (_e) {} // stale — steal and retry
+    }
+  }
+  return false;
+}
+
+/** Release the pid file, but only if this process is the one that owns it. */
+function releaseUiPid(sessionId) {
+  const file = uiPidPath(sessionId);
+  try {
+    if (fs.readFileSync(file, 'utf8').trim() === String(process.pid)) {
+      fs.unlinkSync(file);
+    }
+  } catch (_e) {}
+}
+
+/** Read the UI pid file. Returns { pid, alive } or null when absent/unreadable. */
+function readUiPid(sessionId) {
+  try {
+    const pid = parseInt(fs.readFileSync(uiPidPath(sessionId), 'utf8').trim(), 10);
+    if (!Number.isInteger(pid) || pid <= 0) return null;
+    return { pid, alive: isPidAlive(pid) };
+  } catch (_e) {
+    return null;
+  }
+}
+
 module.exports = {
   queueDir,
   safeSessionId,
@@ -264,9 +402,15 @@ module.exports = {
   write,
   append,
   popHead,
+  advance,
+  setPaused,
   removeAt,
   updateTextById,
   reorder,
   reorderById,
   clear,
+  uiPidPath,
+  claimUiPid,
+  releaseUiPid,
+  readUiPid,
 };
