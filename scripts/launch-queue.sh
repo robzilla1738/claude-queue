@@ -39,8 +39,11 @@ if [ ! -d "${UI_DIR}/node_modules/blessed" ]; then
   fi
 fi
 
-# The command we want the new terminal to run.
+# The command we want the new terminal to run, and the same command with its
+# quotes escaped for embedding in an AppleScript string literal (a bare "
+# would end the literal and break the whole script).
 RUN_CMD="node \"${UI_ENTRY}\" \"${SESSION_ID}\""
+AS_CMD="${RUN_CMD//\"/\\\"}"
 
 manual_fallback() {
   echo "claude-queue: could not open a terminal window automatically."
@@ -51,23 +54,30 @@ manual_fallback() {
 }
 
 open_macos() {
-  # Prefer the terminal the user is already in.
+  # Prefer the terminal the user is already in; fall through to Terminal.app
+  # whenever that one can't be driven.
   case "${TERM_PROGRAM:-}" in
+    ghostty)
+      # Ghostty has no scripting dictionary; `-e` runs an argv in a new window.
+      if open -na Ghostty --args -e node "${UI_ENTRY}" "${SESSION_ID}" >/dev/null 2>&1; then
+        return 0
+      fi
+      ;;
     iTerm.app)
       osascript >/dev/null 2>&1 <<EOF
 tell application "iTerm"
   create window with default profile
-  tell current session of current window to write text "${RUN_CMD}"
+  tell current session of current window to write text "${AS_CMD}"
 end tell
 EOF
-      return $?
+      [ $? -eq 0 ] && return 0
       ;;
   esac
   # Default to Terminal.app.
   osascript >/dev/null 2>&1 <<EOF
 tell application "Terminal"
   activate
-  do script "${RUN_CMD}"
+  do script "${AS_CMD}"
 end tell
 EOF
 }

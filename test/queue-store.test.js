@@ -100,6 +100,22 @@ test('reorder() moves an item between positions', () => {
   assert.strictEqual(store.reorder('s1', 0, 9), null, 'bad index returns null');
 });
 
+test('reorderById() moves the item with that id, clamps, and rejects unknown ids', () => {
+  const store = freshStore();
+  ['a', 'b', 'c'].forEach((t) => store.append('s1', t));
+  const idOfA = store.read('s1').queue[0].id;
+
+  store.reorderById('s1', idOfA, 2); // drag 'a' to the end
+  assert.deepStrictEqual(store.read('s1').queue.map((i) => i.text), ['b', 'c', 'a']);
+
+  store.reorderById('s1', idOfA, 99); // out-of-range clamps to the last slot
+  assert.deepStrictEqual(store.read('s1').queue.map((i) => i.text), ['b', 'c', 'a']);
+
+  // An id that is no longer pending (e.g. popped mid-drag) moves nothing.
+  assert.strictEqual(store.reorderById('s1', 'no-such-id', 0), null);
+  assert.deepStrictEqual(store.read('s1').queue.map((i) => i.text), ['b', 'c', 'a']);
+});
+
 test('sessions are isolated from one another', () => {
   const store = freshStore();
   store.append('alpha', 'a-task');

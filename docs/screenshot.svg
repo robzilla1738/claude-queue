@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="463" viewBox="0 0 520 463" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13">
+  <rect width="520" height="463" rx="12" fill="#101010"/>
+  <path d="M0 12a12 12 0 0 1 12-12h496a12 12 0 0 1 12 12v24H0z" fill="#1a1a1a"/>
+  <circle cx="20" cy="18" r="5.5" fill="#2e2e2e"/>
+  <circle cx="40" cy="18" r="5.5" fill="#2e2e2e"/>
+  <circle cx="60" cy="18" r="5.5" fill="#2e2e2e"/>
+  <text x="33.6" y="66.2" fill="#ffffff" font-weight="600" textLength="93.6" lengthAdjust="spacingAndGlyphs">claude-queue</text>
+  <text x="142.8" y="66.2" fill="#ffffff" textLength="31.2" lengthAdjust="spacingAndGlyphs">demo</text>
+  <text x="369.0" y="66.2" fill="#ffffff" textLength="7.8" lengthAdjust="spacingAndGlyphs">3</text>
+  <text x="384.6" y="66.2" fill="#ffffff" textLength="46.8" lengthAdjust="spacingAndGlyphs">queued</text>
+  <text x="439.2" y="66.2" fill="#ffffff" textLength="7.8" lengthAdjust="spacingAndGlyphs">·</text>
+  <text x="454.8" y="66.2" fill="#ffffff" textLength="7.8" lengthAdjust="spacingAndGlyphs">2</text>
+  <text x="470.4" y="66.2" fill="#ffffff" textLength="31.2" lengthAdjust="spacingAndGlyphs">done</text>
+  <path d="M41.4 96.5H37.5V105.0M41.4 96.5H49.2" stroke="#6e6e6e" stroke-width="1" fill="none"/>
+  <text x="57.0" y="100.2" fill="#6e6e6e" textLength="23.4" lengthAdjust="spacingAndGlyphs">new</text>
+  <text x="88.2" y="100.2" fill="#6e6e6e" textLength="31.2" lengthAdjust="spacingAndGlyphs">task</text>
+  <path d="M127.2 96.5H135.0M135.0 96.5H142.8M142.8 96.5H150.6M150.6 96.5H158.4M158.4 96.5H166.2M166.2 96.5H174.0M174.0 96.5H181.8M181.8 96.5H189.6M189.6 96.5H197.4M197.4 96.5H205.2M205.2 96.5H213.0M213.0 96.5H220.8M220.8 96.5H228.6M228.6 96.5H236.4M236.4 96.5H244.2M244.2 96.5H252.0M252.0 96.5H259.8M259.8 96.5H267.6M267.6 96.5H275.4M275.4 96.5H283.2M283.2 96.5H291.0M291.0 96.5H298.8M298.8 96.5H306.6M306.6 96.5H314.4M314.4 96.5H322.2M322.2 96.5H330.0M330.0 96.5H337.8M337.8 96.5H345.6M345.6 96.5H353.4M353.4 96.5H361.2M361.2 96.5H369.0M369.0 96.5H376.8M376.8 96.5H384.6M384.6 96.5H392.4M392.4 96.5H400.2M400.2 96.5H408.0M408.0 96.5H415.8M415.8 96.5H423.6M423.6 96.5H431.4M431.4 96.5H439.2M439.2 96.5H447.0M447.0 96.5H454.8M454.8 96.5H462.6M462.6 96.5H470.4M470.4 96.5H478.2M478.2 96.5H486.0M486.0 96.5H493.8M493.8 96.5H497.7V105.0" stroke="#6e6e6e" stroke-width="1" fill="none"/>
+  <path d="M37.5 105.0V122.0" stroke="#6e6e6e" stroke-width="1" fill="none"/>
+  <path d="M497.7 105.0V122.0" stroke="#6e6e6e" stroke-width="1" fill="none"/>
+  <path d="M41.4 130.5H37.5V122.0M41.4 130.5H49.2M49.2 130.5H57.0M57.0 130.5H64.8M64.8 130.5H72.6M72.6 130.5H80.4M80.4 130.5H88.2M88.2 130.5H96.0M96.0 130.5H103.8M103.8 130.5H111.6M111.6 130.5H119.4M119.4 130.5H127.2M127.2 130.5H135.0M135.0 130.5H142.8M142.8 130.5H150.6M150.6 130.5H158.4M158.4 130.5H166.2M166.2 130.5H174.0M174.0 130.5H181.8M181.8 130.5H189.6M189.6 130.5H197.4M197.4 130.5H205.2M205.2 130.5H213.0M213.0 130.5H220.8M220.8 130.5H228.6M228.6 130.5H236.4M236.4 130.5H244.2M244.2 130.5H252.0M252.0 130.5H259.8M259.8 130.5H267.6M267.6 130.5H275.4M275.4 130.5H283.2M283.2 130.5H291.0M291.0 130.5H298.8M298.8 130.5H306.6M306.6 130.5H314.4M314.4 130.5H322.2M322.2 130.5H330.0M330.0 130.5H337.8M337.8 130.5H345.6M345.6 130.5H353.4M353.4 130.5H361.2M361.2 130.5H369.0M369.0 130.5H376.8M376.8 130.5H384.6M384.6 130.5H392.4M392.4 130.5H400.2M400.2 130.5H408.0M408.0 130.5H415.8M415.8 130.5H423.6M423.6 130.5H431.4M431.4 130.5H439.2M439.2 130.5H447.0M447.0 130.5H454.8M454.8 130.5H462.6M462.6 130.5H470.4M470.4 130.5H478.2M478.2 130.5H486.0M486.0 130.5H493.8M493.8 130.5H497.7V122.0" stroke="#6e6e6e" stroke-width="1" fill="none"/>
+  <path d="M41.4 164.5H37.5V173.0M41.4 164.5H49.2M49.2 164.5H57.0M57.0 164.5H64.8M64.8 164.5H72.6M72.6 164.5H80.4M80.4 164.5H88.2M88.2 164.5H96.0M96.0 164.5H103.8M103.8 164.5H111.6M111.6 164.5H119.4M119.4 164.5H127.2M127.2 164.5H135.0M135.0 164.5H142.8M142.8 164.5H150.6M150.6 164.5H158.4M158.4 164.5H166.2M166.2 164.5H174.0M174.0 164.5H181.8M181.8 164.5H189.6M189.6 164.5H197.4M197.4 164.5H205.2M205.2 164.5H213.0M213.0 164.5H220.8M220.8 164.5H228.6M228.6 164.5H236.4M236.4 164.5H244.2M244.2 164.5H252.0M252.0 164.5H259.8M259.8 164.5H267.6M267.6 164.5H275.4M275.4 164.5H283.2M283.2 164.5H291.0M291.0 164.5H298.8M298.8 164.5H306.6M306.6 164.5H314.4M314.4 164.5H322.2M322.2 164.5H330.0M330.0 164.5H337.8M337.8 164.5H345.6M345.6 164.5H353.4M353.4 164.5H361.2M361.2 164.5H369.0M369.0 164.5H376.8M376.8 164.5H384.6M384.6 164.5H392.4M392.4 164.5H400.2M400.2 164.5H408.0M408.0 164.5H415.8M415.8 164.5H423.6M423.6 164.5H431.4M431.4 164.5H439.2M439.2 164.5H447.0M447.0 164.5H454.8M454.8 164.5H462.6M462.6 164.5H470.4M470.4 164.5H478.2M478.2 164.5H482.1V173.0" stroke="#6e6e6e" stroke-width="1" fill="none"/>
+  <path d="M37.5 173.0V190.0" stroke="#6e6e6e" stroke-width="1" fill="none"/>
+  <text x="57.0" y="185.2" fill="#6e6e6e" textLength="7.8" lengthAdjust="spacingAndGlyphs">1</text>
+  <text x="72.6" y="185.2" fill="#ffffff" textLength="54.6" lengthAdjust="spacingAndGlyphs">tighten</text>
+  <text x="135.0" y="185.2" fill="#ffffff" textLength="31.2" lengthAdjust="spacingAndGlyphs">copy</text>
+  <text x="174.0" y="185.2" fill="#ffffff" textLength="15.6" lengthAdjust="spacingAndGlyphs">on</text>
+  <text x="197.4" y="185.2" fill="#ffffff" textLength="23.4" lengthAdjust="spacingAndGlyphs">the</text>
+  <text x="228.6" y="185.2" fill="#ffffff" textLength="39.0" lengthAdjust="spacingAndGlyphs">login</text>
+  <text x="275.4" y="185.2" fill="#ffffff" textLength="46.8" lengthAdjust="spacingAndGlyphs">screen</text>
+  <text x="408.0" y="185.2" fill="#6e6e6e" textLength="7.8" lengthAdjust="spacingAndGlyphs">▲</text>
+  <text x="431.4" y="185.2" fill="#6e6e6e" textLength="7.8" lengthAdjust="spacingAndGlyphs">▼</text>
+  <text x="454.8" y="185.2" fill="#6e6e6e" textLength="7.8" lengthAdjust="spacingAndGlyphs">✕</text>
+  <path d="M482.1 173.0V190.0" stroke="#6e6e6e" stroke-width="1" fill="none"/>
+  <path d="M41.4 198.5H37.5V190.0M41.4 198.5H49.2M49.2 198.5H57.0M57.0 198.5H64.8M64.8 198.5H72.6M72.6 198.5H80.4M80.4 198.5H88.2M88.2 198.5H96.0M96.0 198.5H103.8M103.8 198.5H111.6M111.6 198.5H119.4M119.4 198.5H127.2M127.2 198.5H135.0M135.0 198.5H142.8M142.8 198.5H150.6M150.6 198.5H158.4M158.4 198.5H166.2M166.2 198.5H174.0M174.0 198.5H181.8M181.8 198.5H189.6M189.6 198.5H197.4M197.4 198.5H205.2M205.2 198.5H213.0M213.0 198.5H220.8M220.8 198.5H228.6M228.6 198.5H236.4M236.4 198.5H244.2M244.2 198.5H252.0M252.0 198.5H259.8M259.8 198.5H267.6M267.6 198.5H275.4M275.4 198.5H283.2M283.2 198.5H291.0M291.0 198.5H298.8M298.8 198.5H306.6M306.6 198.5H314.4M314.4 198.5H322.2M322.2 198.5H330.0M330.0 198.5H337.8M337.8 198.5H345.6M345.6 198.5H353.4M353.4 198.5H361.2M361.2 198.5H369.0M369.0 198.5H376.8M376.8 198.5H384.6M384.6 198.5H392.4M392.4 198.5H400.2M400.2 198.5H408.0M408.0 198.5H415.8M415.8 198.5H423.6M423.6 198.5H431.4M431.4 198.5H439.2M439.2 198.5H447.0M447.0 198.5H454.8M454.8 198.5H462.6M462.6 198.5H470.4M470.4 198.5H478.2M478.2 198.5H482.1V190.0" stroke="#6e6e6e" stroke-width="1" fill="none"/>
+  <path d="M41.4 232.5H37.5V241.0M41.4 232.5H49.2M49.2 232.5H57.0M57.0 232.5H64.8M64.8 232.5H72.6M72.6 232.5H80.4M80.4 232.5H88.2M88.2 232.5H96.0M96.0 232.5H103.8M103.8 232.5H111.6M111.6 232.5H119.4M119.4 232.5H127.2M127.2 232.5H135.0M135.0 232.5H142.8M142.8 232.5H150.6M150.6 232.5H158.4M158.4 232.5H166.2M166.2 232.5H174.0M174.0 232.5H181.8M181.8 232.5H189.6M189.6 232.5H197.4M197.4 232.5H205.2M205.2 232.5H213.0M213.0 232.5H220.8M220.8 232.5H228.6M228.6 232.5H236.4M236.4 232.5H244.2M244.2 232.5H252.0M252.0 232.5H259.8M259.8 232.5H267.6M267.6 232.5H275.4M275.4 232.5H283.2M283.2 232.5H291.0M291.0 232.5H298.8M298.8 232.5H306.6M306.6 232.5H314.4M314.4 232.5H322.2M322.2 232.5H330.0M330.0 232.5H337.8M337.8 232.5H345.6M345.6 232.5H353.4M353.4 232.5H361.2M361.2 232.5H369.0M369.0 232.5H376.8M376.8 232.5H384.6M384.6 232.5H392.4M392.4 232.5H400.2M400.2 232.5H408.0M408.0 232.5H415.8M415.8 232.5H423.6M423.6 232.5H431.4M431.4 232.5H439.2M439.2 232.5H447.0M447.0 232.5H454.8M454.8 232.5H462.6M462.6 232.5H470.4M470.4 232.5H478.2M478.2 232.5H482.1V241.0" stroke="#ffffff" stroke-width="1" fill="none"/>
+  <path d="M37.5 241.0V258.0" stroke="#ffffff" stroke-width="1" fill="none"/>
+  <rect x="41.4" y="241" width="7.8" height="17" fill="#e6e6e6"/>
+  <rect x="49.2" y="241" width="15.6" height="17" fill="#e6e6e6"/>
+  <text x="57.0" y="253.2" fill="#101010" font-weight="600" textLength="7.8" lengthAdjust="spacingAndGlyphs">2</text>
+  <rect x="64.8" y="241" width="413.4" height="17" fill="#e6e6e6"/>
+  <text x="72.6" y="253.2" fill="#101010" textLength="31.2" lengthAdjust="spacingAndGlyphs">bump</text>
+  <text x="111.6" y="253.2" fill="#101010" textLength="31.2" lengthAdjust="spacingAndGlyphs">deps</text>
+  <text x="150.6" y="253.2" fill="#101010" textLength="23.4" lengthAdjust="spacingAndGlyphs">and</text>
+  <text x="181.8" y="253.2" fill="#101010" textLength="39.0" lengthAdjust="spacingAndGlyphs">write</text>
+  <text x="228.6" y="253.2" fill="#101010" textLength="23.4" lengthAdjust="spacingAndGlyphs">the</text>
+  <text x="259.8" y="253.2" fill="#101010" textLength="70.2" lengthAdjust="spacingAndGlyphs">changelog</text>
+  <text x="408.0" y="253.2" fill="#101010" textLength="7.8" lengthAdjust="spacingAndGlyphs">▲</text>
+  <text x="431.4" y="253.2" fill="#101010" textLength="7.8" lengthAdjust="spacingAndGlyphs">▼</text>
+  <text x="454.8" y="253.2" fill="#101010" textLength="7.8" lengthAdjust="spacingAndGlyphs">✕</text>
+  <path d="M482.1 241.0V258.0" stroke="#ffffff" stroke-width="1" fill="none"/>
+  <path d="M41.4 266.5H37.5V258.0M41.4 266.5H49.2M49.2 266.5H57.0M57.0 266.5H64.8M64.8 266.5H72.6M72.6 266.5H80.4M80.4 266.5H88.2M88.2 266.5H96.0M96.0 266.5H103.8M103.8 266.5H111.6M111.6 266.5H119.4M119.4 266.5H127.2M127.2 266.5H135.0M135.0 266.5H142.8M142.8 266.5H150.6M150.6 266.5H158.4M158.4 266.5H166.2M166.2 266.5H174.0M174.0 266.5H181.8M181.8 266.5H189.6M189.6 266.5H197.4M197.4 266.5H205.2M205.2 266.5H213.0M213.0 266.5H220.8M220.8 266.5H228.6M228.6 266.5H236.4M236.4 266.5H244.2M244.2 266.5H252.0M252.0 266.5H259.8M259.8 266.5H267.6M267.6 266.5H275.4M275.4 266.5H283.2M283.2 266.5H291.0M291.0 266.5H298.8M298.8 266.5H306.6M306.6 266.5H314.4M314.4 266.5H322.2M322.2 266.5H330.0M330.0 266.5H337.8M337.8 266.5H345.6M345.6 266.5H353.4M353.4 266.5H361.2M361.2 266.5H369.0M369.0 266.5H376.8M376.8 266.5H384.6M384.6 266.5H392.4M392.4 266.5H400.2M400.2 266.5H408.0M408.0 266.5H415.8M415.8 266.5H423.6M423.6 266.5H431.4M431.4 266.5H439.2M439.2 266.5H447.0M447.0 266.5H454.8M454.8 266.5H462.6M462.6 266.5H470.4M470.4 266.5H478.2M478.2 266.5H482.1V258.0" stroke="#ffffff" stroke-width="1" fill="none"/>
+  <path d="M41.4 300.5H37.5V309.0M41.4 300.5H49.2M49.2 300.5H57.0M57.0 300.5H64.8M64.8 300.5H72.6M72.6 300.5H80.4M80.4 300.5H88.2M88.2 300.5H96.0M96.0 300.5H103.8M103.8 300.5H111.6M111.6 300.5H119.4M119.4 300.5H127.2M127.2 300.5H135.0M135.0 300.5H142.8M142.8 300.5H150.6M150.6 300.5H158.4M158.4 300.5H166.2M166.2 300.5H174.0M174.0 300.5H181.8M181.8 300.5H189.6M189.6 300.5H197.4M197.4 300.5H205.2M205.2 300.5H213.0M213.0 300.5H220.8M220.8 300.5H228.6M228.6 300.5H236.4M236.4 300.5H244.2M244.2 300.5H252.0M252.0 300.5H259.8M259.8 300.5H267.6M267.6 300.5H275.4M275.4 300.5H283.2M283.2 300.5H291.0M291.0 300.5H298.8M298.8 300.5H306.6M306.6 300.5H314.4M314.4 300.5H322.2M322.2 300.5H330.0M330.0 300.5H337.8M337.8 300.5H345.6M345.6 300.5H353.4M353.4 300.5H361.2M361.2 300.5H369.0M369.0 300.5H376.8M376.8 300.5H384.6M384.6 300.5H392.4M392.4 300.5H400.2M400.2 300.5H408.0M408.0 300.5H415.8M415.8 300.5H423.6M423.6 300.5H431.4M431.4 300.5H439.2M439.2 300.5H447.0M447.0 300.5H454.8M454.8 300.5H462.6M462.6 300.5H470.4M470.4 300.5H478.2M478.2 300.5H482.1V309.0" stroke="#6e6e6e" stroke-width="1" fill="none"/>
+  <path d="M37.5 309.0V326.0" stroke="#6e6e6e" stroke-width="1" fill="none"/>
+  <text x="57.0" y="321.2" fill="#6e6e6e" textLength="7.8" lengthAdjust="spacingAndGlyphs">3</text>
+  <text x="72.6" y="321.2" fill="#ffffff" textLength="23.4" lengthAdjust="spacingAndGlyphs">add</text>
+  <text x="103.8" y="321.2" fill="#ffffff" textLength="7.8" lengthAdjust="spacingAndGlyphs">a</text>
+  <text x="119.4" y="321.2" fill="#ffffff" textLength="39.0" lengthAdjust="spacingAndGlyphs">retry</text>
+  <text x="166.2" y="321.2" fill="#ffffff" textLength="15.6" lengthAdjust="spacingAndGlyphs">to</text>
+  <text x="189.6" y="321.2" fill="#ffffff" textLength="23.4" lengthAdjust="spacingAndGlyphs">the</text>
+  <text x="220.8" y="321.2" fill="#ffffff" textLength="39.0" lengthAdjust="spacingAndGlyphs">flaky</text>
+  <text x="267.6" y="321.2" fill="#ffffff" textLength="31.2" lengthAdjust="spacingAndGlyphs">auth</text>
+  <text x="306.6" y="321.2" fill="#ffffff" textLength="31.2" lengthAdjust="spacingAndGlyphs">test</text>
+  <text x="408.0" y="321.2" fill="#6e6e6e" textLength="7.8" lengthAdjust="spacingAndGlyphs">▲</text>
+  <text x="431.4" y="321.2" fill="#6e6e6e" textLength="7.8" lengthAdjust="spacingAndGlyphs">▼</text>
+  <text x="454.8" y="321.2" fill="#6e6e6e" textLength="7.8" lengthAdjust="spacingAndGlyphs">✕</text>
+  <path d="M482.1 309.0V326.0" stroke="#6e6e6e" stroke-width="1" fill="none"/>
+  <path d="M41.4 334.5H37.5V326.0M41.4 334.5H49.2M49.2 334.5H57.0M57.0 334.5H64.8M64.8 334.5H72.6M72.6 334.5H80.4M80.4 334.5H88.2M88.2 334.5H96.0M96.0 334.5H103.8M103.8 334.5H111.6M111.6 334.5H119.4M119.4 334.5H127.2M127.2 334.5H135.0M135.0 334.5H142.8M142.8 334.5H150.6M150.6 334.5H158.4M158.4 334.5H166.2M166.2 334.5H174.0M174.0 334.5H181.8M181.8 334.5H189.6M189.6 334.5H197.4M197.4 334.5H205.2M205.2 334.5H213.0M213.0 334.5H220.8M220.8 334.5H228.6M228.6 334.5H236.4M236.4 334.5H244.2M244.2 334.5H252.0M252.0 334.5H259.8M259.8 334.5H267.6M267.6 334.5H275.4M275.4 334.5H283.2M283.2 334.5H291.0M291.0 334.5H298.8M298.8 334.5H306.6M306.6 334.5H314.4M314.4 334.5H322.2M322.2 334.5H330.0M330.0 334.5H337.8M337.8 334.5H345.6M345.6 334.5H353.4M353.4 334.5H361.2M361.2 334.5H369.0M369.0 334.5H376.8M376.8 334.5H384.6M384.6 334.5H392.4M392.4 334.5H400.2M400.2 334.5H408.0M408.0 334.5H415.8M415.8 334.5H423.6M423.6 334.5H431.4M431.4 334.5H439.2M439.2 334.5H447.0M447.0 334.5H454.8M454.8 334.5H462.6M462.6 334.5H470.4M470.4 334.5H478.2M478.2 334.5H482.1V326.0" stroke="#6e6e6e" stroke-width="1" fill="none"/>
+  <path d="M41.4 368.5H49.2" stroke="#6e6e6e" stroke-width="1" fill="none"/>
+  <text x="57.0" y="372.2" fill="#6e6e6e" textLength="31.2" lengthAdjust="spacingAndGlyphs">done</text>
+  <path d="M96.0 368.5H103.8M103.8 368.5H111.6M111.6 368.5H119.4M119.4 368.5H127.2M127.2 368.5H135.0M135.0 368.5H142.8M142.8 368.5H150.6M150.6 368.5H158.4M158.4 368.5H166.2M166.2 368.5H174.0M174.0 368.5H181.8M181.8 368.5H189.6M189.6 368.5H197.4M197.4 368.5H205.2M205.2 368.5H213.0M213.0 368.5H220.8M220.8 368.5H228.6M228.6 368.5H236.4M236.4 368.5H244.2M244.2 368.5H252.0M252.0 368.5H259.8M259.8 368.5H267.6M267.6 368.5H275.4M275.4 368.5H283.2M283.2 368.5H291.0M291.0 368.5H298.8M298.8 368.5H306.6M306.6 368.5H314.4M314.4 368.5H322.2M322.2 368.5H330.0M330.0 368.5H337.8M337.8 368.5H345.6M345.6 368.5H353.4M353.4 368.5H361.2M361.2 368.5H369.0M369.0 368.5H376.8M376.8 368.5H384.6M384.6 368.5H392.4M392.4 368.5H400.2M400.2 368.5H408.0M408.0 368.5H415.8M415.8 368.5H423.6M423.6 368.5H431.4M431.4 368.5H439.2M439.2 368.5H447.0M447.0 368.5H454.8M454.8 368.5H462.6M462.6 368.5H470.4M470.4 368.5H478.2" stroke="#6e6e6e" stroke-width="1" fill="none"/>
+  <text x="41.4" y="389.2" fill="#6e6e6e" textLength="7.8" lengthAdjust="spacingAndGlyphs">✓</text>
+  <text x="57.0" y="389.2" fill="#6e6e6e" textLength="31.2" lengthAdjust="spacingAndGlyphs">wire</text>
+  <text x="96.0" y="389.2" fill="#6e6e6e" textLength="15.6" lengthAdjust="spacingAndGlyphs">up</text>
+  <text x="119.4" y="389.2" fill="#6e6e6e" textLength="23.4" lengthAdjust="spacingAndGlyphs">the</text>
+  <text x="150.6" y="389.2" fill="#6e6e6e" textLength="23.4" lengthAdjust="spacingAndGlyphs">new</text>
+  <text x="181.8" y="389.2" fill="#6e6e6e" textLength="62.4" lengthAdjust="spacingAndGlyphs">settings</text>
+  <text x="252.0" y="389.2" fill="#6e6e6e" textLength="31.2" lengthAdjust="spacingAndGlyphs">pane</text>
+  <text x="41.4" y="406.2" fill="#6e6e6e" textLength="7.8" lengthAdjust="spacingAndGlyphs">✓</text>
+  <text x="57.0" y="406.2" fill="#6e6e6e" textLength="23.4" lengthAdjust="spacingAndGlyphs">fix</text>
+  <text x="88.2" y="406.2" fill="#6e6e6e" textLength="23.4" lengthAdjust="spacingAndGlyphs">the</text>
+  <text x="119.4" y="406.2" fill="#6e6e6e" textLength="70.2" lengthAdjust="spacingAndGlyphs">dark-mode</text>
+  <text x="197.4" y="406.2" fill="#6e6e6e" textLength="62.4" lengthAdjust="spacingAndGlyphs">contrast</text>
+  <text x="267.6" y="406.2" fill="#6e6e6e" textLength="23.4" lengthAdjust="spacingAndGlyphs">bug</text>
+  <text x="72.6" y="440.2" fill="#6e6e6e" textLength="15.6" lengthAdjust="spacingAndGlyphs">↑↓</text>
+  <text x="96.0" y="440.2" fill="#6e6e6e" textLength="46.8" lengthAdjust="spacingAndGlyphs">select</text>
+  <text x="150.6" y="440.2" fill="#6e6e6e" textLength="7.8" lengthAdjust="spacingAndGlyphs">·</text>
+  <text x="166.2" y="440.2" fill="#6e6e6e" textLength="62.4" lengthAdjust="spacingAndGlyphs">drag/⇧↑↓</text>
+  <text x="236.4" y="440.2" fill="#6e6e6e" textLength="31.2" lengthAdjust="spacingAndGlyphs">move</text>
+  <text x="275.4" y="440.2" fill="#6e6e6e" textLength="7.8" lengthAdjust="spacingAndGlyphs">·</text>
+  <text x="291.0" y="440.2" fill="#6e6e6e" textLength="23.4" lengthAdjust="spacingAndGlyphs">⏎/a</text>
+  <text x="322.2" y="440.2" fill="#6e6e6e" textLength="23.4" lengthAdjust="spacingAndGlyphs">add</text>
+  <text x="353.4" y="440.2" fill="#6e6e6e" textLength="7.8" lengthAdjust="spacingAndGlyphs">·</text>
+  <text x="369.0" y="440.2" fill="#6e6e6e" textLength="7.8" lengthAdjust="spacingAndGlyphs">d</text>
+  <text x="384.6" y="440.2" fill="#6e6e6e" textLength="46.8" lengthAdjust="spacingAndGlyphs">remove</text>
+  <text x="439.2" y="440.2" fill="#6e6e6e" textLength="7.8" lengthAdjust="spacingAndGlyphs">·</text>
+  <text x="454.8" y="440.2" fill="#6e6e6e" textLength="7.8" lengthAdjust="spacingAndGlyphs">q</text>
+  <text x="470.4" y="440.2" fill="#6e6e6e" textLength="31.2" lengthAdjust="spacingAndGlyphs">quit</text>
+</svg>

@@ -1,6 +1,9 @@
 # claude-queue
 
-Queue follow-up tasks for a running Claude Code session — in a clickable terminal task list.
+Queue follow-up tasks for a running Claude Code session — in a clickable, draggable
+terminal task list.
+
+![the claude-queue terminal UI](docs/screenshot.svg)
 
 Fire off your first task, then pop open a small second-terminal UI and start adding more.
 Claude finishes what it's working on, then **automatically picks up the next queued task**,
@@ -59,17 +62,23 @@ prints the exact `node …/ui/queue-ui.js <session>` command to run in any termi
 ### The UI
 
 A minimal, black-and-white list. Each queued task is its own box; the selected
-box is inverted (black on white). The current task in progress is item 1 — Claude
+box is inverted (black on white), and the box under your cursor brightens so you
+can see what a click will hit. The current task in progress is item 1 — Claude
 takes from the top.
 
 | Action | Mouse | Keys |
 | --- | --- | --- |
 | Add a task | type in the **new task** box, click away | type + **Enter** |
 | Select a task | click its box | **↑/↓** or **j/k** |
-| Move up / down | click the **▲ / ▼** handle on the box | **Shift+↑/↓** |
+| Reorder | **drag a box up / down**, or click its **▲ / ▼** | **Shift+↑/↓** |
 | Remove a task | click the **✕** handle on the box | **d** / **⌫** |
+| Jump to top / bottom | — | **g** / **G** (or Home / End) |
 | Jump to the input | click the **new task** box | **a** / **i** |
 | Quit (queue keeps running) | — | **q** / **Esc** / **Ctrl-C** |
+
+Drag-to-reorder needs a terminal that reports mouse motion (Terminal.app, iTerm2
+and the rest of the xterm family all do); anywhere else, the ▲ / ▼ handles and
+Shift+↑/↓ do the same job.
 
 Consumed tasks drop into a dim **done** strip at the bottom so you can see what
 Claude has already picked up.
@@ -85,15 +94,19 @@ scripts/stop-hook.js              # Stop hook: pop next task, tell Claude to con
 scripts/launch-queue.sh           # opens the default terminal + starts the UI
 scripts/lib/queue-store.js        # shared, atomic per-session queue file logic
 ui/queue-ui.js                    # the blessed terminal task list
-test/                             # node:test unit + hook integration tests
+ui/layout.js                      # pure row/handle geometry + the drag state machine
+test/                             # node:test units + hook integration + tmux smoke test
+docs/                             # README screenshot + the script that regenerates it
 ```
 
 ## Development
 
 ```
 node --test test/*.test.js     # run the test suite
+bash test/tmux-smoke.sh        # drive the real UI in tmux: keys, clicks, drags, hover
 (cd ui && npm install)         # install the UI dependency for local runs
 node ui/queue-ui.js my-session # run the UI standalone against a session id
+bash docs/make-screenshot.sh   # regenerate the README screenshot from the live UI
 ```
 
 Queues live in `~/.claude-queue/`. Delete that folder any time to clear all queues, or set
@@ -101,7 +114,7 @@ Queues live in `~/.claude-queue/`. Delete that folder any time to clear all queu
 
 ## Notes & limitations
 
-- macOS (Terminal.app / iTerm) and Linux (`$TERMINAL`, `x-terminal-emulator`,
+- macOS (Terminal.app / iTerm2 / Ghostty) and Linux (`$TERMINAL`, `x-terminal-emulator`,
   `gnome-terminal`, `konsole`, `kitty`, `alacritty`, `xterm`, …) are supported. Windows
   Terminal is not yet handled — contributions welcome.
 - Queues are scoped per session id, so multiple concurrent sessions stay independent.

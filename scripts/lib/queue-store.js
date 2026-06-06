@@ -210,6 +210,27 @@ function reorder(sessionId, from, to) {
   });
 }
 
+/**
+ * Move the pending item with the given id to index `to` (clamped). The id is
+ * resolved to an index under the lock, so a concurrent mutation (e.g. the Stop
+ * hook popping the head mid-drag) can never make this move the wrong item.
+ * Returns the updated queue, or null if no pending item has that id.
+ */
+function reorderById(sessionId, id, to) {
+  return withLock(sessionId, () => {
+    const state = read(sessionId);
+    const from = state.queue.findIndex((it) => it.id === id);
+    if (from === -1) return null;
+    const clamped = Math.max(0, Math.min(state.queue.length - 1, to));
+    if (from !== clamped) {
+      const [moved] = state.queue.splice(from, 1);
+      state.queue.splice(clamped, 0, moved);
+      write(sessionId, state);
+    }
+    return state.queue;
+  });
+}
+
 /** Clear everything (pending + done) for a session. */
 function clear(sessionId) {
   return withLock(sessionId, () => write(sessionId, emptyState(sessionId)));
@@ -225,5 +246,6 @@ module.exports = {
   popHead,
   removeAt,
   reorder,
+  reorderById,
   clear,
 };
