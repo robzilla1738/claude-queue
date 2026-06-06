@@ -131,9 +131,13 @@ pruned automatically the next time `/claude-queue` runs.
 
 ## Notes & limitations
 
-- macOS (Terminal.app / iTerm2 / Ghostty) and Linux (`$TERMINAL`, `x-terminal-emulator`,
-  `gnome-terminal`, `konsole`, `kitty`, `alacritty`, `xterm`, …) are supported. Windows
-  Terminal is not yet handled — contributions welcome.
+- macOS and Linux (`$TERMINAL`, `x-terminal-emulator`, `gnome-terminal`, `konsole`,
+  `kitty`, `alacritty`, `xterm`, …) are supported. On macOS the queue window opens in
+  iTerm2 when you're already in iTerm2, and in Terminal.app everywhere else (including
+  Ghostty — spawning a second Ghostty instance is the only way to script a Ghostty
+  window, and that instance dies shortly after launch, taking the queue with it).
+  The window itself is shell-agnostic: the wrapper is plain `#!/bin/sh`, so fish, zsh,
+  bash and friends all work. Windows Terminal is not yet handled — contributions welcome.
 - Queues are scoped per session id, so multiple concurrent sessions stay independent.
 - The open queue window is tracked through `~/.claude-queue/ui-<session_id>.pid` — that's
   what enforces one window per session and tells the Stop hook to keep listening for new

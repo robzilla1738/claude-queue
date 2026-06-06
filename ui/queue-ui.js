@@ -72,6 +72,18 @@ if (!store.claimUiPid(sessionId)) {
 process.on('exit', () => store.releaseUiPid(sessionId));
 process.on('SIGTERM', () => process.exit(0));
 process.on('SIGINT', () => process.exit(0));
+// Closing the terminal window delivers SIGHUP; without a handler node dies
+// without running 'exit', leaving a stale pid file behind.
+process.on('SIGHUP', () => process.exit(0));
+
+// The launcher's wrapper script has done its job the moment this instance owns
+// the session. Remove it so macOS window restoration — which re-runs a closed
+// window's command as `<file>; exit` — finds nothing to resurrect; a restored
+// window then just fails the missing file and exits instead of opening a
+// zombie queue window for a long-gone session.
+try {
+  fs.unlinkSync(path.join(store.queueDir(), `open-queue-${store.safeSessionId(sessionId)}.sh`));
+} catch (_e) {}
 
 // Monochrome palette — only white, grey (ANSI bright-black = index 8) and black.
 // Using the numeric index avoids blessed's hex→palette mis-mapping and renders

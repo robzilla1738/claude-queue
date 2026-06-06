@@ -90,7 +90,9 @@ manual_fallback() {
 verify_started() {
   local i pid
   local pidfile="${QUEUE_DIR}/ui-${SESSION_ID}.pid"
-  for i in $(seq 1 30); do
+  # ~10s budget: a cold Terminal.app launch (app not yet running) can take a
+  # few seconds before the wrapper even starts.
+  for i in $(seq 1 50); do
     pid="$(cat "${pidfile}" 2>/dev/null || true)"
     if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
       return 0
@@ -104,41 +106,34 @@ verify_started() {
 }
 
 open_macos() {
-  # Drive the terminal the user is already in; anything else gets Terminal.app.
-  # Each branch dispatches its launch request and returns — deliberately
-  # WITHOUT falling through to another terminal on a nonzero exit. `open -n`
-  # has been seen exiting nonzero while the window still appears, and a
-  # fall-through then opens a SECOND identical queue window in Terminal.app.
-  # verify_started() is the one arbiter of success; if the dispatch truly did
-  # nothing, the caller shows the manual fallback instead of guessing again.
-  case "${TERM_PROGRAM:-}" in
-    ghostty)
-      # Ghostty has no scripting interface on macOS, so a fresh instance with
-      # `-e <wrapper>` is the only programmatic window available. The single
-      # wrapper word sidesteps multi-arg quirks; -F (open fresh, an `open`
-      # flag) and --window-save-state=never (a Ghostty flag) both keep this
-      # throwaway instance from saving or restoring windows that macOS would
-      # otherwise "restore" as zombie queue windows.
-      open -na Ghostty -F --args --window-save-state=never -e "${WRAPPER}" >/dev/null 2>&1
-      return 0
-      ;;
-    iTerm.app)
-      osascript >/dev/null 2>&1 <<EOF
+  # iTerm users get a native iTerm window; everyone else — Terminal.app users,
+  # Ghostty, unknown terminals — gets Terminal.app via `open -a`, which opens
+  # the wrapper in the EXISTING Terminal instance.
+  #
+  # Ghostty deliberately has NO native branch. Its only programmatic window on
+  # macOS is a second instance (`open -na Ghostty --args -e <wrapper>`), and
+  # that instance has been observed (Ghostty 1.3.1) to pop a bogus
+  # "Configuration Errors: 0 error(s)" dialog, restore stale windows that
+  # re-run old wrappers as `<file>; exit`, fail to start the user's login
+  # shell ("Ghostty failed to launch the requested command: /usr/bin/login …
+  # fish"), and then exit half a minute after launch — taking the queue UI
+  # down with it. Terminal.app hosts the queue window reliably instead.
+  if [ "${TERM_PROGRAM:-}" = "iTerm.app" ]; then
+    osascript >/dev/null 2>&1 <<EOF
 tell application "iTerm"
   create window with default profile
   tell current session of current window to write text "\"${WRAPPER}\""
 end tell
 EOF
-      return 0
-      ;;
-  esac
-  # Default to Terminal.app.
-  osascript >/dev/null 2>&1 <<EOF
-tell application "Terminal"
-  activate
-  do script "\"${WRAPPER}\""
-end tell
-EOF
+    verify_started && return 0
+    # Apple Events can be unavailable (sandboxed caller, missing Automation
+    # permission) — fall through to Terminal.app. Safe even if a window DID
+    # open late: the UI's single-instance pid guard closes the duplicate.
+  fi
+  # `open -a` needs no Apple Events and no new app instance, and Terminal runs
+  # the executable wrapper directly — the user's login shell (fish, zsh, bash,
+  # …) never has to parse a command line.
+  open -a Terminal "${WRAPPER}" >/dev/null 2>&1
 }
 
 open_linux() {
@@ -173,7 +168,10 @@ open_linux() {
 
 case "$(uname -s)" in
   Darwin)
-    if open_macos && verify_started; then
+    # One retry: a Terminal.app that is mid-startup (or was quit moments ago)
+    # has been seen dropping the first open request. Retrying can't double up
+    # — a duplicate UI exits immediately via the pid-file guard.
+    if { open_macos && verify_started; } || { open_macos && verify_started; }; then
       echo "claude-queue: opened the queue UI for session ${SESSION_ID}."
     else
       manual_fallback
