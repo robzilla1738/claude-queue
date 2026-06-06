@@ -71,6 +71,7 @@ takes from the top.
 | Add a task | type in the **new task** box, click away | type + **Enter** |
 | Select a task | click its box | **↑/↓** or **j/k** |
 | Reorder | **drag a box up / down**, or click its **▲ / ▼** | **Shift+↑/↓** |
+| Edit a task | **double-click its box** | **e** (Enter saves, Esc cancels) |
 | Remove a task | click the **✕** handle on the box | **d** / **⌫** |
 | Jump to top / bottom | — | **g** / **G** (or Home / End) |
 | Jump to the input | click the **new task** box | **a** / **i** |

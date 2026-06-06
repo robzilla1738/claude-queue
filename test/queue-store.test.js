@@ -116,6 +116,33 @@ test('reorderById() moves the item with that id, clamps, and rejects unknown ids
   assert.deepStrictEqual(store.read('s1').queue.map((i) => i.text), ['b', 'c', 'a']);
 });
 
+test('updateTextById() rewrites the pending item in place, trimming the text', () => {
+  const store = freshStore();
+  ['a', 'b', 'c'].forEach((t) => store.append('s1', t));
+  const idOfB = store.read('s1').queue[1].id;
+
+  const updated = store.updateTextById('s1', idOfB, '  b, revised  ');
+  assert.strictEqual(updated.text, 'b, revised');
+
+  const state = store.read('s1');
+  assert.deepStrictEqual(state.queue.map((i) => i.text), ['a', 'b, revised', 'c']);
+  assert.strictEqual(state.queue[1].id, idOfB, 'identity and position survive an edit');
+});
+
+test('updateTextById() rejects blank text, unknown ids, and consumed items', () => {
+  const store = freshStore();
+  store.append('s1', 'a');
+  const id = store.read('s1').queue[0].id;
+
+  assert.strictEqual(store.updateTextById('s1', id, '   '), null);
+  assert.strictEqual(store.read('s1').queue[0].text, 'a', 'blank edit changes nothing');
+  assert.strictEqual(store.updateTextById('s1', 'no-such-id', 'x'), null);
+
+  store.popHead('s1'); // consumed mid-edit — no longer editable
+  assert.strictEqual(store.updateTextById('s1', id, 'x'), null);
+  assert.strictEqual(store.read('s1').done[0].text, 'a', 'done history is untouched');
+});
+
 test('sessions are isolated from one another', () => {
   const store = freshStore();
   store.append('alpha', 'a-task');

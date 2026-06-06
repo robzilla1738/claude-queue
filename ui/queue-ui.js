@@ -35,7 +35,22 @@ try {
 
 const store = require(path.join(__dirname, '..', 'scripts', 'lib', 'queue-store'));
 
-const sessionId = process.argv[2] || process.env.CLAUDE_SESSION_ID || 'default';
+// The session id MUST be explicit. A queue UI that guesses ('default') looks
+// identical to a correctly bound one, but the running session's Stop hook will
+// never read its file — every task typed into it is silently stranded. That
+// exact failure has been observed when macOS window restoration re-ran this
+// script with its argv stripped, so refuse loudly instead of guessing.
+const sessionId = process.argv[2] || process.env.CLAUDE_SESSION_ID || '';
+if (!sessionId) {
+  console.error(
+    'Usage: node queue-ui.js <session-id>\n' +
+      'No session id given — refusing to guess, because a queue bound to the\n' +
+      'wrong session silently strands every task typed into it.\n' +
+      'Run /claude-queue inside Claude Code to open the UI correctly bound,\n' +
+      "or pass an id explicitly (e.g. node queue-ui.js default)."
+  );
+  process.exit(1);
+}
 const queueFile = store.queuePath(sessionId);
 
 // Monochrome palette — only white, grey (ANSI bright-black = index 8) and black.
@@ -102,12 +117,18 @@ const input = blessed.textbox({
 input.on('focus', () => input.readInput());
 
 // Scrollable region that holds one box per task (a blank gap row in between).
+// autoFocus:false — blessed's screen focuses any clickable element when a
+// click lands on it (screen.js 'element click'), INCLUDING the click it
+// synthesizes on mouseup. Without this, the release of a double-click would
+// steal focus from the input right after startEdit() and cancel the edit.
+// We focus the list ourselves in resolvePress(), so nothing is lost.
 const listArea = blessed.box({
   parent: screen,
   top: 6,
   left: 2,
   right: 2,
   bottom: 2,
+  autoFocus: false,
   scrollable: true,
   alwaysScroll: true,
   mouse: true,
@@ -124,7 +145,7 @@ const footer = blessed.box({
   height: 1,
   tags: true,
   style: { fg: FAINT },
-  content: '{|}↑↓ select · drag/⇧↑↓ move · ⏎/a add · d remove · q quit',
+  content: '{|}↑↓ select · drag/⇧↑↓ move · ⏎/a add · e edit · d remove · q quit',
 });
 
 // ---------------------------------------------------------------------------
@@ -136,6 +157,8 @@ let taskBoxes = []; // direct children of listArea, rebuilt each render
 let innerW = 24; // task-box width; refreshed each render for click hit-testing
 
 let hoverIdx = -1; // task under the mouse (hover affordance), -1 = none
+let editingId = null; // id of the item the input box is editing, null = adding
+let lastPress = { idx: -1, at: 0 }; // previous press, for double-click-to-edit
 let drag = { phase: 'idle' }; // dragReducer state
 let draggedId = null; // id of the item being dragged, so a concurrent pop can't redirect the drag
 let suppressClick = false; // swallow the click blessed synthesizes after a press we handled
@@ -325,6 +348,27 @@ function move(i, delta) {
   render();
 }
 
+/**
+ * Put the input box into edit mode for the task at index i: the item's text is
+ * loaded for editing and Enter saves it in place. The item is tracked by id,
+ * so the Stop hook consuming items mid-edit can't retarget the save.
+ */
+function startEdit(i) {
+  const item = state.queue[i];
+  if (!item) return;
+  editingId = item.id;
+  input.setLabel(` edit task ${i + 1} `);
+  input.setValue(item.text);
+  focusInput();
+}
+
+/** Leave edit mode and restore the input box to its add-a-task role. */
+function resetInput() {
+  editingId = null;
+  input.setLabel(' new task ');
+  input.clearValue();
+}
+
 // ---------------------------------------------------------------------------
 // Input wiring
 // ---------------------------------------------------------------------------
@@ -334,12 +378,24 @@ function focusInput() {
 }
 
 input.on('submit', (value) => {
+  if (editingId !== null) {
+    // Editing: save in place. A blank submit, or an item that was consumed /
+    // removed while the edit was open (updateTextById returns null), simply
+    // discards the edit — the queue is the source of truth.
+    const t = (value || '').trim();
+    if (t) store.updateTextById(sessionId, editingId, t);
+    resetInput();
+    listArea.focus(); // back to the list to see the change
+    render();
+    return;
+  }
   addTask(value);
   input.clearValue();
   input.focus(); // stay in "add" mode for rapid entry
   screen.render();
 });
 input.on('cancel', () => {
+  if (editingId !== null) resetInput(); // Escape abandons the edit
   // Escape hands focus to the list. Skip when focus already moved (the cancel
   // was caused by our own focus steal) so the two can't ping-pong.
   if (screen.focused !== listArea) listArea.focus();
@@ -433,7 +489,21 @@ listArea.on('mousedown', (data) => {
     return;
   }
   const target = resolvePress(data);
-  if (typeof target === 'number') applyDrag({ type: 'down', idx: target });
+  if (typeof target === 'number') {
+    // Double-click on a task opens it for editing. Held-button drag motion
+    // can't get here (it took the drag branch above), so two presses on the
+    // same row in quick succession really is a double-click.
+    const now = Date.now();
+    if (target === lastPress.idx && now - lastPress.at < 400) {
+      lastPress = { idx: -1, at: 0 };
+      drag = { phase: 'idle' }; // a double-click is not a drag
+      draggedId = null;
+      startEdit(target);
+      return;
+    }
+    lastPress = { idx: target, at: now };
+    applyDrag({ type: 'down', idx: target });
+  }
 });
 
 listArea.on('mousemove', (data) => {
@@ -508,7 +578,13 @@ listArea.key(['S-down', 'S-j'], () => move(selected, 1));
 listArea.key(['d', 'delete', 'backspace'], () => {
   if (state.queue.length) removeAt(selected);
 });
-listArea.key(['a', 'i', 'enter'], focusInput);
+listArea.key(['a', 'i', 'enter'], () => {
+  resetInput(); // 'add' always starts from a clean, non-editing input
+  focusInput();
+});
+listArea.key('e', () => {
+  if (state.queue.length) startEdit(selected);
+});
 listArea.key('r', render);
 
 screen.key(['q', 'C-c'], () => process.exit(0));

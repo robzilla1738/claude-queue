@@ -76,6 +76,22 @@ mouse() {
   sleep 0.1
 }
 
+# dblclick <x> <y> — two press/release pairs, fast. Each event must be its own
+# stdin chunk (blessed's ^-anchored SGR regex parses ONE mouse report per
+# chunk), but the pairs must still land within the UI's 400ms double-click
+# window — so: separate sends, tiny gaps, no 0.1s sleeps like mouse().
+dblclick() {
+  local press release
+  press=$(printf '\x1b[<0;%s;%sM' "$1" "$2" | od -An -tx1 | tr -d '\n')
+  release=$(printf '\x1b[<0;%s;%sm' "$1" "$2" | od -An -tx1 | tr -d '\n')
+  local ev
+  for ev in "${press}" "${release}" "${press}" "${release}"; do
+    TM send-keys -t "${SESSION}" -H ${ev}
+    sleep 0.03
+  done
+  sleep 0.2
+}
+
 # wait_for <fixed-string> — poll the pane until it shows up (5s budget).
 wait_for() {
   local i
@@ -155,6 +171,7 @@ assert_shows 'header shows the queue counts' '3 queued · 0 done'
 assert_shows 'task 1 is rendered in its box' '1 first task'
 assert_shows 'task 3 renders its emoji intact' 'ship the release 🚀'
 assert_shows 'footer advertises drag + jump keys' 'drag/⇧↑↓ move'
+assert_shows 'footer advertises the edit key' 'e edit'
 
 # A blank gap row must separate box 1's bottom border from box 2's top border.
 GAP_ROW=$((Y0 + 2)) # row after task 1's bottom border
@@ -197,6 +214,27 @@ keys g # jump back to the top
 keys d
 assert_absent 'g then d removes the first task' 'task alpha'
 assert_shows 'the remaining task renumbers to 1' '1 task bravo'
+
+# --- 2b. keyboard: edit in place ---------------------------------------------
+
+start_ui 'task alpha' 'task bravo'
+
+keys Escape # hand focus to the list (selection starts on task 1)
+keys e
+assert_shows 'e opens the selected task in the input box' 'edit task 1'
+keys ' edited' Enter
+assert_shows 'Enter saves the edit in place' '1 task alpha edited'
+if [ "$(queue_texts)" = 'task alpha edited|task bravo' ]; then
+  ok 'the edit was persisted without reordering the queue'
+else
+  not_ok "the edit was persisted without reordering the queue (got: $(queue_texts))"
+fi
+
+keys e
+wait_for 'edit task 1' || true
+keys ' DISCARDED' Escape
+assert_absent 'Escape abandons the edit' 'DISCARDED'
+assert_absent 'Escape leaves edit mode (label restored)' 'edit task'
 
 # --- 3. mouse: drag to reorder (xterm-style mousedown stream) ----------------
 
@@ -255,6 +293,10 @@ assert_shows '▼ moves its task down a slot' '2 task bravo'
 mouse 0 "${UPX}" "${Y1}" M # click ▲ on row 2 to undo it
 mouse 0 "${UPX}" "${Y1}" m
 assert_shows '▲ moves it back up' '1 task bravo'
+
+dblclick "${BODYX}" "${Y0}"
+assert_shows 'double-click opens the task for editing' 'edit task 1'
+keys Escape # abandon the edit
 
 # --- 5. concurrency: the Stop hook pops the head mid-drag ---------------------
 

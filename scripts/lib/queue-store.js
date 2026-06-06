@@ -197,6 +197,26 @@ function removeAt(sessionId, index) {
   });
 }
 
+/**
+ * Replace the text of the pending item with the given id. The id (not an
+ * index) identifies the item, so a concurrent mutation (e.g. the Stop hook
+ * popping the head mid-edit) can never retarget the edit. Returns the updated
+ * item, or null when the text is blank or no pending item has that id (an
+ * already-consumed item is not editable — Claude is working on it).
+ */
+function updateTextById(sessionId, id, text) {
+  const trimmed = String(text == null ? '' : text).trim();
+  if (!trimmed) return null;
+  return withLock(sessionId, () => {
+    const state = read(sessionId);
+    const item = state.queue.find((it) => it.id === id);
+    if (!item) return null;
+    item.text = trimmed;
+    write(sessionId, state);
+    return item;
+  });
+}
+
 /** Move a pending item from one index to another. Returns the updated queue or null on bad index. */
 function reorder(sessionId, from, to) {
   return withLock(sessionId, () => {
@@ -245,6 +265,7 @@ module.exports = {
   append,
   popHead,
   removeAt,
+  updateTextById,
   reorder,
   reorderById,
   clear,
