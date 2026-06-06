@@ -8,7 +8,5 @@
   },
   "homepage": "https://github.com/robzilla1738/claude-queue",
   "license": "MIT",
-  "keywords": ["queue", "tasks", "stop-hook", "tui", "workflow"],
-  "commands": "./commands",
-  "hooks": "./hooks/hooks.json"
+  "keywords": ["queue", "tasks", "stop-hook", "tui", "workflow"]
 }
